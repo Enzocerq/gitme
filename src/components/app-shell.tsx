@@ -8,9 +8,12 @@ import {
   Github,
   LogOut,
   GitFork,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { getUser, getSelectedRepo, logout } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/use-theme";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -31,6 +34,7 @@ const titles: Record<string, { title: string; subtitle: string }> = {
 export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
+  const { isDark, toggle } = useTheme();
   const meta = titles[pathname] ?? { title: "GitHealth", subtitle: "Real-time engineering intelligence" };
 
   const user = getUser();
@@ -149,6 +153,13 @@ export function AppShell() {
               <span className="size-2 rounded-full bg-emerald-glow animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
               GitHub Connected
             </div>
+            <button
+              onClick={toggle}
+              className="size-9 grid place-items-center rounded-lg border border-border bg-obsidian-900/60 backdrop-blur-xl text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={isDark ? "Alternar para tema claro" : "Alternar para tema escuro"}
+            >
+              {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            </button>
             <a
               href={`https://github.com/${user?.login ?? ""}`}
               target="_blank"
