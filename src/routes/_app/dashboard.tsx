@@ -119,7 +119,7 @@ function ProductivityScorePanel({ data, loading }: { data?: ProductivityScoreRes
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 md:gap-10">
           {/* Donut ring */}
           <div className="relative w-36 h-36 flex-shrink-0">
-            <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90" aria-hidden="true">
+            <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90" style={{ overflow: "visible" }} aria-hidden="true">
               <circle cx="60" cy="60" r={r} fill="none" stroke="oklch(1 0 0 / 0.06)" strokeWidth="9" />
               <circle
                 cx="60" cy="60" r={r} fill="none"
