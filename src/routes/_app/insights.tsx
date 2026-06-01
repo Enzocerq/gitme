@@ -141,7 +141,29 @@ function InsightsPage() {
   function buildInsights(): Array<{ tone: "positive" | "warning" | "info"; title: string; body: string }> {
     if (!ind || !team) return [];
     const result: Array<{ tone: "positive" | "warning" | "info"; title: string; body: string }> = [];
+    const heatmap = insights?.productivityHeatmap;
 
+    const total = ind.feat + ind.fix + ind.other;
+    const otherRatio = total > 0 ? ind.other / total : 0;
+    const conventionalPct = total > 0 ? Math.round((ind.totalConventional / total) * 100) : 0;
+
+    let hmTotal = 0, businessHours = 0, weekendTotal = 0, nightTotal = 0;
+    if (heatmap) {
+      for (let d = 0; d < 7; d++) {
+        for (let h = 0; h < 24; h++) {
+          const v = heatmap[d][h];
+          hmTotal += v;
+          if (d <= 4 && h >= 9 && h < 18) businessHours += v;
+          if (d >= 5) weekendTotal += v;
+          if (h < 6) nightTotal += v;
+        }
+      }
+    }
+    const businessHoursPct = hmTotal > 0 ? Math.round((businessHours / hmTotal) * 100) : 0;
+    const weekendPct = hmTotal > 0 ? Math.round((weekendTotal / hmTotal) * 100) : 0;
+    const nightPct = hmTotal > 0 ? Math.round((nightTotal / hmTotal) * 100) : 0;
+
+    // ── Positivos ──────────────────────────────────────────────
     if (ind.featRatio >= 0.5) {
       result.push({
         tone: "positive",
@@ -150,13 +172,52 @@ function InsightsPage() {
       });
     }
 
-    if (ind.fixRatio > 0.3) {
+    if (team.featRatio > 0 && ind.featRatio >= team.featRatio * 1.3) {
       result.push({
-        tone: "warning",
-        title: "Bug fixing acima do baseline",
-        body: `${(ind.fixRatio * 100).toFixed(0)}% do esforço foi para correções${team.fixRatio > 0 ? ` — ${((ind.fixRatio - team.fixRatio) * 100).toFixed(0)}pp acima da média da equipe` : ""}.`,
+        tone: "positive",
+        title: "Features acima da média da equipe",
+        body: `Sua taxa de features (${(ind.featRatio * 100).toFixed(0)}%) supera em destaque a média da equipe (${(team.featRatio * 100).toFixed(0)}%), indicando alta entrega de valor.`,
       });
-    } else if (ind.fix > 0) {
+    }
+
+    if (ind.fix === 0 && total > 0) {
+      result.push({
+        tone: "positive",
+        title: "Período sem bugs registrados",
+        body: "Nenhum commit de correção (fix:) identificado no período — sinal de código estável e menor retrabalho.",
+      });
+    } else if (ind.fix > 0 && ind.fixRatio <= 0.3 && team.fixRatio > 0 && ind.fixRatio < team.fixRatio * 0.7) {
+      result.push({
+        tone: "positive",
+        title: "Menos bugs que a equipe",
+        body: `Seu índice de correções (${(ind.fixRatio * 100).toFixed(0)}%) está abaixo da média da equipe (${(team.fixRatio * 100).toFixed(0)}%), sugerindo menor retrabalho.`,
+      });
+    }
+
+    if (conventionalPct >= 80) {
+      result.push({
+        tone: "positive",
+        title: "Excelente adoção do Conventional Commits",
+        body: `${conventionalPct}% dos seus commits seguem o padrão Conventional Commits — ótimo para changelogs automáticos e rastreabilidade.`,
+      });
+    } else if (conventionalPct >= 50) {
+      result.push({
+        tone: "positive",
+        title: "Boa adoção do Conventional Commits",
+        body: `${conventionalPct}% dos seus commits seguem o padrão Conventional Commits, facilitando changelogs automáticos.`,
+      });
+    }
+
+    if (heatmap && hmTotal > 0 && businessHoursPct >= 70) {
+      result.push({
+        tone: "positive",
+        title: "Boa disciplina de horário",
+        body: `${businessHoursPct}% dos commits ocorrem em horário comercial (seg–sex, 9h–18h), indicando ritmo de trabalho sustentável.`,
+      });
+    }
+
+    // ── Informativos ───────────────────────────────────────────
+    if (ind.fix > 0 && ind.fixRatio <= 0.3 && !(team.fixRatio > 0 && ind.fixRatio < team.fixRatio * 0.7)) {
       result.push({
         tone: "info",
         title: "Bug fixing saudável",
@@ -164,21 +225,45 @@ function InsightsPage() {
       });
     }
 
-    if (ind.totalConventional > 0) {
-      const conventionalPct = Math.round((ind.totalConventional / (ind.feat + ind.fix + ind.other)) * 100);
-      if (conventionalPct >= 50) {
-        result.push({
-          tone: "positive",
-          title: "Boa adoção do padrão conventional",
-          body: `${conventionalPct}% dos seus commits seguem o padrão Conventional Commits, facilitando changelogs automáticos.`,
-        });
-      } else {
-        result.push({
-          tone: "info",
-          title: "Conventional Commits",
-          body: `${conventionalPct}% dos commits usam o padrão convencional. Adotar mais amplamente melhora rastreabilidade e automação de release.`,
-        });
-      }
+    if (conventionalPct > 0 && conventionalPct < 50) {
+      result.push({
+        tone: "info",
+        title: "Adoção parcial do Conventional Commits",
+        body: `${conventionalPct}% dos commits usam o padrão convencional. Adotar mais amplamente melhora rastreabilidade e automação de release.`,
+      });
+    }
+
+    if (total > 3 && otherRatio > 0.3 && otherRatio <= 0.5 && ind.totalConventional > 0) {
+      result.push({
+        tone: "info",
+        title: "Commits sem classificação convencional",
+        body: `${(otherRatio * 100).toFixed(0)}% dos commits não seguem prefixos como feat:, fix: ou chore:. Padronizar melhora rastreabilidade.`,
+      });
+    }
+
+    if (heatmap && hmTotal > 0 && weekendPct > 10 && weekendPct <= 25) {
+      result.push({
+        tone: "info",
+        title: "Commits nos fins de semana",
+        body: `${weekendPct}% dos commits ocorrem no fim de semana. Verifique se esse padrão é intencional ou sinal de sobrecarga.`,
+      });
+    }
+
+    if (heatmap && hmTotal > 0 && nightPct > 10 && nightPct <= 25) {
+      result.push({
+        tone: "info",
+        title: "Commits em horário noturno",
+        body: `${nightPct}% dos commits são feitos entre 0h–6h. Trabalhar tarde pode impactar a qualidade e a sustentabilidade do ritmo.`,
+      });
+    }
+
+    // ── Alertas ────────────────────────────────────────────────
+    if (ind.fixRatio > 0.3) {
+      result.push({
+        tone: "warning",
+        title: "Bug fixing acima do baseline",
+        body: `${(ind.fixRatio * 100).toFixed(0)}% do esforço foi para correções${team.fixRatio > 0 ? ` — ${((ind.fixRatio - team.fixRatio) * 100).toFixed(0)}pp acima da média da equipe` : ""}.`,
+      });
     }
 
     if (team.featRatio > 0 && ind.featRatio < team.featRatio * 0.7) {
@@ -186,6 +271,36 @@ function InsightsPage() {
         tone: "warning",
         title: "Features abaixo da média",
         body: `Sua taxa de features (${(ind.featRatio * 100).toFixed(0)}%) está abaixo da média da equipe (${(team.featRatio * 100).toFixed(0)}%).`,
+      });
+    }
+
+    if (total > 5 && ind.totalConventional === 0) {
+      result.push({
+        tone: "warning",
+        title: "Sem uso do Conventional Commits",
+        body: "Nenhum commit segue o padrão Conventional Commits. Isso dificulta changelogs automáticos e rastreabilidade de mudanças.",
+      });
+    } else if (total > 3 && otherRatio > 0.5 && ind.totalConventional > 0) {
+      result.push({
+        tone: "warning",
+        title: "Maioria dos commits sem padrão convencional",
+        body: `${(otherRatio * 100).toFixed(0)}% dos commits não têm classificação convencional, dificultando análise e automação do histórico.`,
+      });
+    }
+
+    if (heatmap && hmTotal > 0 && weekendPct > 25) {
+      result.push({
+        tone: "warning",
+        title: "Alto volume de trabalho no fim de semana",
+        body: `${weekendPct}% dos commits ocorrem aos fins de semana. Isso pode indicar sobrecarga ou dificuldade de entregar dentro do horário normal.`,
+      });
+    }
+
+    if (heatmap && hmTotal > 0 && nightPct > 25) {
+      result.push({
+        tone: "warning",
+        title: "Padrão de commits noturnos",
+        body: `${nightPct}% dos commits são feitos entre 0h–6h. Esse padrão pode indicar sobrecarga e impacto na qualidade do código.`,
       });
     }
 
