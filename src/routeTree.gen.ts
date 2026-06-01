@@ -9,7 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SelectReposRouteImport } from './routes/select-repos'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthCallbackRouteImport } from './routes/auth-callback'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRepositoriesRouteImport } from './routes/_app/repositories'
@@ -18,9 +20,19 @@ import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppCollaborationRouteImport } from './routes/_app/collaboration'
 import { Route as AppActivityRouteImport } from './routes/_app/activity'
 
+const SelectReposRoute = SelectReposRouteImport.update({
+  id: '/select-repos',
+  path: '/select-repos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth-callback',
+  path: '/auth-callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
@@ -60,7 +72,9 @@ const AppActivityRoute = AppActivityRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth-callback': typeof AuthCallbackRoute
   '/login': typeof LoginRoute
+  '/select-repos': typeof SelectReposRoute
   '/activity': typeof AppActivityRoute
   '/collaboration': typeof AppCollaborationRoute
   '/dashboard': typeof AppDashboardRoute
@@ -69,7 +83,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth-callback': typeof AuthCallbackRoute
   '/login': typeof LoginRoute
+  '/select-repos': typeof SelectReposRoute
   '/activity': typeof AppActivityRoute
   '/collaboration': typeof AppCollaborationRoute
   '/dashboard': typeof AppDashboardRoute
@@ -80,7 +96,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/auth-callback': typeof AuthCallbackRoute
   '/login': typeof LoginRoute
+  '/select-repos': typeof SelectReposRoute
   '/_app/activity': typeof AppActivityRoute
   '/_app/collaboration': typeof AppCollaborationRoute
   '/_app/dashboard': typeof AppDashboardRoute
@@ -91,7 +109,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth-callback'
     | '/login'
+    | '/select-repos'
     | '/activity'
     | '/collaboration'
     | '/dashboard'
@@ -100,7 +120,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth-callback'
     | '/login'
+    | '/select-repos'
     | '/activity'
     | '/collaboration'
     | '/dashboard'
@@ -110,7 +132,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
+    | '/auth-callback'
     | '/login'
+    | '/select-repos'
     | '/_app/activity'
     | '/_app/collaboration'
     | '/_app/dashboard'
@@ -121,16 +145,32 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  AuthCallbackRoute: typeof AuthCallbackRoute
   LoginRoute: typeof LoginRoute
+  SelectReposRoute: typeof SelectReposRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/select-repos': {
+      id: '/select-repos'
+      path: '/select-repos'
+      fullPath: '/select-repos'
+      preLoaderRoute: typeof SelectReposRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth-callback': {
+      id: '/auth-callback'
+      path: '/auth-callback'
+      fullPath: '/auth-callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app': {
@@ -206,8 +246,20 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  AuthCallbackRoute: AuthCallbackRoute,
   LoginRoute: LoginRoute,
+  SelectReposRoute: SelectReposRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

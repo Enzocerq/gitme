@@ -1,4 +1,4 @@
-import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Activity,
@@ -7,8 +7,9 @@ import {
   Sparkles,
   Github,
   LogOut,
+  GitFork,
 } from "lucide-react";
-import { mockUser } from "@/lib/mock-data";
+import { getUser, getSelectedRepo, logout } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -24,12 +25,25 @@ const titles: Record<string, { title: string; subtitle: string }> = {
   "/activity": { title: "Activity & Flow", subtitle: "Commits, PRs, issues e tempos de resolução" },
   "/repositories": { title: "Repositories", subtitle: "Análise de esforço por repositório" },
   "/collaboration": { title: "Team Collaboration", subtitle: "Você vs equipe e suporte à comunidade" },
-  "/insights": { title: "Insights Engine", subtitle: "Diagnósticos automáticos e janelas produtivas" },
+  "/insights": { title: "Insights Engine", subtitle: "Diagnósticos automáticos e padrões de commit" },
 };
 
 export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
   const meta = titles[pathname] ?? { title: "GitHealth", subtitle: "Real-time engineering intelligence" };
+
+  const user = getUser();
+  const repo = getSelectedRepo();
+
+  function handleLogout() {
+    logout();
+    navigate({ to: "/login" });
+  }
+
+  function handleChangeRepo() {
+    navigate({ to: "/select-repos" });
+  }
 
   return (
     <div className="min-h-screen text-foreground selection:bg-emerald-glow/30">
@@ -52,7 +66,23 @@ export function AppShell() {
           </div>
         </div>
 
-        <nav className="p-3 space-y-1 flex-1">
+        {/* Repo badge */}
+        {repo && (
+          <button
+            onClick={handleChangeRepo}
+            className="mx-3 mt-3 px-3 py-2 rounded-lg bg-obsidian-900/60 border border-border text-left hover:border-emerald-glow/30 transition-colors group"
+          >
+            <div className="flex items-center gap-2">
+              <GitFork className="size-3.5 text-emerald-glow shrink-0" />
+              <p className="text-xs font-medium text-foreground truncate">{repo.fullName}</p>
+            </div>
+            <p className="text-[10px] text-muted-foreground font-mono mt-0.5 group-hover:text-emerald-glow/70 transition-colors">
+              Trocar repositório
+            </p>
+          </button>
+        )}
+
+        <nav className="p-3 space-y-1 flex-1 mt-1">
           {nav.map((item) => {
             const active = pathname === item.to;
             const Icon = item.icon;
@@ -79,16 +109,30 @@ export function AppShell() {
 
         <div className="p-4">
           <div className="flex items-center gap-3 p-3 bg-obsidian-900/60 border border-border rounded-xl backdrop-blur-xl">
-            <img src={mockUser.avatarUrl} alt={mockUser.name} className="size-10 rounded-full border border-border" />
+            {user ? (
+              <img
+                src={user.avatarUrl}
+                alt={user.login}
+                className="size-10 rounded-full border border-border"
+              />
+            ) : (
+              <div className="size-10 rounded-full border border-border bg-obsidian-800" />
+            )}
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-foreground truncate">{mockUser.name}</p>
+              <p className="text-sm font-semibold text-foreground truncate">
+                {user?.name ?? user?.login ?? "GitHub User"}
+              </p>
               <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider truncate">
-                @{mockUser.login}
+                @{user?.login ?? "…"}
               </p>
             </div>
-            <Link to="/login" className="text-muted-foreground hover:text-foreground" aria-label="Sair">
+            <button
+              onClick={handleLogout}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Sair"
+            >
               <LogOut className="size-4" />
-            </Link>
+            </button>
           </div>
         </div>
       </aside>
@@ -106,7 +150,7 @@ export function AppShell() {
               GitHub Connected
             </div>
             <a
-              href="https://github.com"
+              href={`https://github.com/${user?.login ?? ""}`}
               target="_blank"
               rel="noreferrer"
               className="size-9 grid place-items-center rounded-lg border border-border bg-obsidian-900/60 backdrop-blur-xl text-muted-foreground hover:text-foreground transition-colors"
