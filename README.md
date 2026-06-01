@@ -98,8 +98,8 @@ A interface adota estética de "console de engenharia" com suporte a tema claro 
 
 ```bash
 # 1. Clone o repositório
-git clone https://github.com/seu-usuario/git-health.git
-cd git-health
+git clone https://github.com/seu-usuario/gitme.git
+cd gitme
 
 # 2. Instale as dependências
 npm install
