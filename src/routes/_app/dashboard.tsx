@@ -228,7 +228,7 @@ function DashboardPage() {
 
   const raw = overview.individual;
   const ind = {
-    acceptanceRate: raw.acceptanceRate ?? 0,
+    acceptanceRate: (raw.acceptanceRate ?? 0) * 100,
     prsMerged: raw.prsMerged ?? 0,
     prsOpened: raw.prsOpened ?? 0,
     commits: raw.commits ?? 0,

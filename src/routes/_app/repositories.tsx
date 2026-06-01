@@ -34,7 +34,7 @@ function ReposPage() {
   const repos = (repoData?.repos ?? []).map((r, i) => ({
     ...r,
     color: REPO_COLORS[i % REPO_COLORS.length],
-    participation: Math.round((r.participation ?? 0) * 100) / 100,
+    participation: Math.round((r.participation ?? 0) * 10000) / 100,
   }));
 
   const totalCommits = repos.reduce((s, r) => s + r.totalCommits, 0);
