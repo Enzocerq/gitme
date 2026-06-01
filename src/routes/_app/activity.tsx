@@ -298,7 +298,21 @@ function ActivityPage() {
                       @{a.authorLogin} · {new Date(a.date).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
-                  <CheckCircle2 className="size-4 text-emerald-glow/70 shrink-0" />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {(a.additions != null && a.additions > 0) && (
+                      <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-400">
+                        +{a.additions}
+                      </span>
+                    )}
+                    {(a.deletions != null && a.deletions > 0) && (
+                      <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-red-500/40 bg-red-500/10 text-red-400">
+                        -{a.deletions}
+                      </span>
+                    )}
+                    {(a.additions == null || a.additions === 0) && (a.deletions == null || a.deletions === 0) && (
+                      <CheckCircle2 className="size-4 text-emerald-glow/70" />
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -338,9 +352,21 @@ function ActivityPage() {
                         @{a.authorLogin} · {new Date(a.date).toLocaleDateString("pt-BR")}
                       </p>
                     </div>
-                    <span className={`text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded border shrink-0 ${tone}`}>
-                      {a.state === "merged" ? "mesclado" : a.state === "open" ? "aberto" : a.state === "closed" ? "fechado" : a.state}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {(a.additions != null && a.additions > 0) && (
+                        <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-400">
+                          +{a.additions}
+                        </span>
+                      )}
+                      {(a.deletions != null && a.deletions > 0) && (
+                        <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-red-500/40 bg-red-500/10 text-red-400">
+                          -{a.deletions}
+                        </span>
+                      )}
+                      <span className={`text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded border ${tone}`}>
+                        {a.state === "merged" ? "mesclado" : a.state === "open" ? "aberto" : a.state === "closed" ? "fechado" : a.state}
+                      </span>
+                    </div>
                   </li>
                 );
               })}

@@ -147,7 +147,7 @@ export interface FlowMetrics {
   individual: { cycleTimeHours: number; leadTimeHours: number; tcm: number; timeInReviewHours: number; activeDays: number };
   team: { cycleTimeHours: number; leadTimeHours: number; tcm: number; timeInReviewHours: number; activeDays: number };
   timeInReviewSeries: Array<{ date: string; avgHours: number }>;
-  recent: Array<{ kind: string; sha: string | null; number: number | null; title: string; state: string; date: string; authorLogin: string }>;
+  recent: Array<{ kind: string; sha: string | null; number: number | null; title: string; state: string; date: string; authorLogin: string; additions?: number | null; deletions?: number | null }>;
 }
 
 export async function getFlowMetrics(params: MetricParams): Promise<FlowMetrics> {

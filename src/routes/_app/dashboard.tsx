@@ -254,8 +254,9 @@ function DashboardPage() {
     title: item.title,
     repo: repo?.name ?? "",
     time: formatRelativeTime(item.date),
-    diff: "—",
     status: item.state === "closed" || item.state === "merged" ? "merged" : item.state === "open" ? "open" : "ok",
+    additions: item.additions,
+    deletions: item.deletions,
   }));
 
   const contributors = (collab?.reviewDistribution ?? []).slice(0, 5).map((r) => ({
@@ -395,6 +396,18 @@ function DashboardPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground truncate">{a.title}</p>
                       <p className="text-[11px] text-muted-foreground font-mono">{a.repo} • {a.time}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {(a.additions != null && a.additions > 0) && (
+                        <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-400">
+                          +{a.additions}
+                        </span>
+                      )}
+                      {(a.deletions != null && a.deletions > 0) && (
+                        <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-red-500/40 bg-red-500/10 text-red-400">
+                          -{a.deletions}
+                        </span>
+                      )}
                     </div>
                   </li>
                 );
