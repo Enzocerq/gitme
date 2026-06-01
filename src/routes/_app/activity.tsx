@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { GitCommit, GitPullRequest, CheckCircle2, AlertTriangle } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { KpiCard } from "@/components/kpi-card";
-import { getFlowMetrics } from "@/lib/api";
+import { getFlowMetrics, getInsightsMetrics } from "@/lib/api";
 import { getUser, getSelectedRepo, defaultDateRange } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/activity")({
@@ -28,6 +28,32 @@ function ActivityPage() {
     enabled: !!repo && !!user,
     staleTime: 1000 * 60 * 5,
   });
+
+  const { data: insights, isLoading: isLoadingInsights } = useQuery({
+    queryKey: ["insights", { repoId: repo?.id, authorLogin: user?.login, from, to }],
+    queryFn: () => getInsightsMetrics({ repoId: repo!.id, authorLogin: user!.login, from, to }),
+    enabled: !!repo && !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const indClass = insights?.individual?.commitClassification;
+  const teamClass = insights?.team?.commitClassification;
+
+  const bugFixRatioData = indClass
+    ? [
+        { name: "Funcionalidades (feat)", value: indClass.feat, color: "var(--emerald-glow)" },
+        { name: "Correções (fix)", value: indClass.fix, color: "var(--ruby-glow)" },
+        { name: "Outros", value: indClass.other, color: "var(--violet-glow)" },
+      ].filter((d) => d.value > 0)
+    : [];
+
+  const teamBugFixData = teamClass
+    ? [
+        { name: "Features (feat)", value: teamClass.feat, color: "var(--emerald-glow)" },
+        { name: "Bug Fixing (fix)", value: teamClass.fix, color: "var(--ruby-glow)" },
+        { name: "Outros", value: teamClass.other, color: "var(--violet-glow)" },
+      ].filter((d) => d.value > 0)
+    : [];
 
   const ind = flow?.individual;
   const reviewSeries = (flow?.timeInReviewSeries ?? [])
@@ -156,6 +182,92 @@ function ActivityPage() {
               );
             })}
           </div>
+        </GlassCard>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        <GlassCard className="p-6">
+          <h3 className="text-base font-semibold text-foreground mb-1">Seus Commits por Tipo</h3>
+          <p className="text-xs text-muted-foreground mb-4 md:mb-6">Classificação por Conventional Commits</p>
+          {isLoadingInsights ? (
+            <div className="h-56 flex items-center justify-center animate-pulse">
+              <div className="size-28 rounded-full bg-obsidian-800/60" />
+            </div>
+          ) : bugFixRatioData.length === 0 ? (
+            <div className="h-56 flex items-center justify-center text-sm text-muted-foreground">
+              Sem commits classificados no período.
+            </div>
+          ) : (
+            <>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={bugFixRatioData} dataKey="value" innerRadius={55} outerRadius={90} paddingAngle={3} stroke="none">
+                      {bugFixRatioData.map((d, i) => (
+                        <Cell key={i} fill={d.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: "var(--obsidian-950)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-4 space-y-3">
+                {bugFixRatioData.map((d) => (
+                  <div key={d.name} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="size-2.5 rounded-sm" style={{ background: d.color }} />
+                      <span className="text-foreground">{d.name}</span>
+                    </div>
+                    <span className="font-mono text-muted-foreground tabular-nums">{d.value}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </GlassCard>
+
+        <GlassCard className="p-6">
+          <h3 className="text-base font-semibold text-foreground mb-1">Equipe por Tipo</h3>
+          <p className="text-xs text-muted-foreground mb-4 md:mb-6">Distribuição da equipe inteira</p>
+          {isLoadingInsights ? (
+            <div className="h-56 flex items-center justify-center animate-pulse">
+              <div className="size-28 rounded-full bg-obsidian-800/60" />
+            </div>
+          ) : teamBugFixData.length === 0 ? (
+            <div className="h-56 flex items-center justify-center text-sm text-muted-foreground">
+              Sem dados de equipe disponíveis.
+            </div>
+          ) : (
+            <>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={teamBugFixData} dataKey="value" innerRadius={55} outerRadius={90} paddingAngle={3} stroke="none">
+                      {teamBugFixData.map((d, i) => (
+                        <Cell key={i} fill={d.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: "var(--obsidian-950)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-4 space-y-3">
+                {teamBugFixData.map((d) => (
+                  <div key={d.name} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="size-2.5 rounded-sm" style={{ background: d.color }} />
+                      <span className="text-foreground">{d.name}</span>
+                    </div>
+                    <span className="font-mono text-muted-foreground tabular-nums">{d.value}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </GlassCard>
       </div>
 

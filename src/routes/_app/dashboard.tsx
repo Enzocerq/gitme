@@ -235,14 +235,18 @@ function DashboardPage() {
   };
   const leadTimeDays = flow ? ((flow.individual.leadTimeHours ?? 0) / 24) : 0;
 
-  const activitySeries = (overview.activityOverTime ?? []).map((p) => ({
-    day: new Date(p.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
-    date: p.date,
-    commits: p.commits,
-    prs: p.prs,
-    teamCommits: p.teamCommits,
-    teamPrs: p.teamPrs,
-  }));
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  const activitySeries = (overview.activityOverTime ?? [])
+    .filter((p) => new Date(p.date) >= cutoff)
+    .map((p) => ({
+      day: new Date(p.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+      date: p.date,
+      commits: p.commits,
+      prs: p.prs,
+      teamCommits: p.teamCommits,
+      teamPrs: p.teamPrs,
+    }));
   const xAxisInterval = Math.max(0, Math.ceil(activitySeries.length / 8) - 1);
 
   const recentActivity = (flow?.recent ?? []).slice(0, 5).map((item) => ({
@@ -263,8 +267,23 @@ function DashboardPage() {
 
   return (
     <div className="space-y-6 md:space-y-8">
+      {/* Productivity Score */}
+      <ProductivityScorePanel data={scoreData} loading={loadingScore} />
+
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <KpiCard
+          label="Commits"
+          value={`${ind.commits}`}
+          hint={`Equipe: ${overview.team.commits}`}
+        />
+
+        <KpiCard
+          label="PRs Mergeadas"
+          value={`${ind.prsMerged}`}
+          hint={`${ind.prsOpened} abertas no período`}
+        />
+
         <KpiCard
           label="Taxa de Aceitação"
           value={`${ind.acceptanceRate.toFixed(1)}%`}
@@ -279,27 +298,12 @@ function DashboardPage() {
         </KpiCard>
 
         <KpiCard
-          label="PRs Mergeadas"
-          value={`${ind.prsMerged}`}
-          hint={`${ind.prsOpened} abertas no período`}
-        />
-
-        <KpiCard
           label="Tempo de Lead"
           value={`${leadTimeDays.toFixed(1)}d`}
           delta={flow ? { value: 0, invert: true } : undefined}
           hint="Da issue ao merge"
         />
-
-        <KpiCard
-          label="Commits"
-          value={`${ind.commits}`}
-          hint={`Equipe: ${overview.team.commits}`}
-        />
       </div>
-
-      {/* Productivity Score */}
-      <ProductivityScorePanel data={scoreData} loading={loadingScore} />
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">

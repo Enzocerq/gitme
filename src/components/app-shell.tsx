@@ -19,18 +19,18 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
 
 const nav = [
-  { to: "/dashboard", label: "Painel", icon: LayoutDashboard },
+  { to: "/dashboard", label: "Visão Geral", icon: LayoutDashboard },
   { to: "/activity", label: "Atividade", icon: Activity },
   { to: "/repositories", label: "Repositórios", icon: GitBranch },
-  { to: "/collaboration", label: "Colaboração", icon: Users },
+  { to: "/collaboration", label: "Equipe", icon: Users },
   { to: "/insights", label: "Insights", icon: Sparkles },
 ] as const;
 
 const titles: Record<string, { title: string; subtitle: string }> = {
-  "/dashboard": { title: "Visão Geral de Engenharia", subtitle: "Resumo executivo de produtividade e fluxo" },
+  "/dashboard": { title: "Visão Geral de Produtividade", subtitle: "Resumo executivo de produtividade e fluxo" },
   "/activity": { title: "Atividade & Fluxo", subtitle: "Commits, PRs, issues e tempos de resolução" },
   "/repositories": { title: "Repositórios", subtitle: "Análise de esforço por repositório" },
-  "/collaboration": { title: "Colaboração da Equipe", subtitle: "Você vs equipe e suporte à comunidade" },
+  "/collaboration": { title: "Equipe", subtitle: "Distribuição de commits e colaboração entre membros" },
   "/insights": { title: "Motor de Insights", subtitle: "Diagnósticos automáticos e padrões de commit" },
 };
 
