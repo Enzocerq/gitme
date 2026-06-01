@@ -96,14 +96,15 @@ function DashboardPage() {
   };
   const leadTimeDays = flow ? ((flow.individual.leadTimeHours ?? 0) / 24) : 0;
 
-  const activitySeries = (overview.activityOverTime ?? []).map((p, i) => ({
-    day: `D${i + 1}`,
+  const activitySeries = (overview.activityOverTime ?? []).map((p) => ({
+    day: new Date(p.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
     date: p.date,
     commits: p.commits,
     prs: p.prs,
     teamCommits: p.teamCommits,
     teamPrs: p.teamPrs,
   }));
+  const xAxisInterval = Math.max(0, Math.ceil(activitySeries.length / 8) - 1);
 
   const recentActivity = (flow?.recent ?? []).slice(0, 5).map((item) => ({
     type: item.kind === "commit" ? "commit" : "pr",
@@ -191,7 +192,7 @@ function DashboardPage() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.05)" vertical={false} />
-                <XAxis dataKey="day" stroke="var(--obsidian-400)" fontSize={10} tickLine={false} axisLine={false} />
+                <XAxis dataKey="day" stroke="var(--obsidian-400)" fontSize={10} tickLine={false} axisLine={false} interval={xAxisInterval} />
                 <YAxis stroke="var(--obsidian-400)" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip content={<ChartTooltip />} />
                 <Area type="monotone" dataKey="commits" stroke="var(--emerald-glow)" strokeWidth={2} fill="url(#gradCommits)" />
@@ -210,7 +211,7 @@ function DashboardPage() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={activitySeries}>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.05)" vertical={false} />
-                <XAxis dataKey="day" stroke="var(--obsidian-400)" fontSize={10} tickLine={false} axisLine={false} />
+                <XAxis dataKey="day" stroke="var(--obsidian-400)" fontSize={10} tickLine={false} axisLine={false} interval={xAxisInterval} />
                 <YAxis stroke="var(--obsidian-400)" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip content={<ChartTooltip />} />
                 <Line type="monotone" dataKey="commits" stroke="var(--emerald-glow)" strokeWidth={2.5} dot={false} />
