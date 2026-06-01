@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { GitCommit, GitPullRequest, CheckCircle2, AlertTriangle } from "lucide-react";
+import { GitCommit, GitPullRequest, CheckCircle2 } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { KpiCard } from "@/components/kpi-card";
 import { getFlowMetrics, getInsightsMetrics } from "@/lib/api";
@@ -271,27 +271,26 @@ function ActivityPage() {
         </GlassCard>
       </div>
 
-      <GlassCard className="overflow-hidden">
-        <div className="p-6 border-b border-border">
-          <h3 className="text-base font-semibold text-foreground">Timeline cronológica</h3>
-          <p className="text-xs text-muted-foreground">Últimos commits, PRs e issues</p>
-        </div>
-        {recentActivity.length === 0 ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">Sem atividade no período.</div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {recentActivity.map((a, i) => {
-              const Icon = a.kind === "commit" ? GitCommit : a.kind === "pr" ? GitPullRequest : AlertTriangle;
-              const tone =
-                a.state === "merged"
-                  ? "text-violet-glow border-violet-glow/30 bg-violet-glow/5"
-                  : a.state === "closed"
-                  ? "text-emerald-glow border-emerald-glow/30 bg-emerald-glow/5"
-                  : "text-amber-glow border-amber-glow/30 bg-amber-glow/5";
-              return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        {/* Commits */}
+        <GlassCard className="overflow-hidden">
+          <div className="p-6 border-b border-border flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Commits Recentes</h3>
+              <p className="text-xs text-muted-foreground">Últimos commits no período</p>
+            </div>
+            <div className="size-8 grid place-items-center rounded-lg border border-emerald-glow/30 bg-emerald-glow/5">
+              <GitCommit className="size-4 text-emerald-glow" />
+            </div>
+          </div>
+          {recentActivity.filter((a) => a.kind === "commit").length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">Sem commits no período.</div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {recentActivity.filter((a) => a.kind === "commit").map((a, i) => (
                 <li key={i} className="px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 md:gap-4 hover:bg-obsidian-800/20 transition-colors">
-                  <div className="size-9 grid place-items-center rounded-lg border border-border bg-obsidian-900/60">
-                    <Icon className="size-4 text-muted-foreground" />
+                  <div className="size-9 grid place-items-center rounded-lg border border-emerald-glow/30 bg-emerald-glow/5 shrink-0">
+                    <GitCommit className="size-4 text-emerald-glow" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground truncate">{a.title}</p>
@@ -299,18 +298,56 @@ function ActivityPage() {
                       @{a.authorLogin} · {new Date(a.date).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
-                  <span className={`text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded border ${tone}`}>
-                    {a.state === "merged" ? "mesclado" : a.state === "open" ? "aberto" : a.state === "closed" ? "fechado" : a.state}
-                  </span>
-                  {a.kind === "commit" || a.kind === "pr" ? (
-                    <CheckCircle2 className="size-4 text-emerald-glow/70" />
-                  ) : null}
+                  <CheckCircle2 className="size-4 text-emerald-glow/70 shrink-0" />
                 </li>
-              );
-            })}
-          </ul>
-        )}
-      </GlassCard>
+              ))}
+            </ul>
+          )}
+        </GlassCard>
+
+        {/* Pull Requests */}
+        <GlassCard className="overflow-hidden">
+          <div className="p-6 border-b border-border flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Pull Requests Recentes</h3>
+              <p className="text-xs text-muted-foreground">Últimos PRs no período</p>
+            </div>
+            <div className="size-8 grid place-items-center rounded-lg border border-violet-glow/30 bg-violet-glow/5">
+              <GitPullRequest className="size-4 text-violet-glow" />
+            </div>
+          </div>
+          {recentActivity.filter((a) => a.kind === "pr").length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">Sem PRs no período.</div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {recentActivity.filter((a) => a.kind === "pr").map((a, i) => {
+                const tone =
+                  a.state === "merged"
+                    ? "text-violet-glow border-violet-glow/30 bg-violet-glow/5"
+                    : a.state === "closed"
+                    ? "text-emerald-glow border-emerald-glow/30 bg-emerald-glow/5"
+                    : "text-amber-glow border-amber-glow/30 bg-amber-glow/5";
+                return (
+                  <li key={i} className="px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 md:gap-4 hover:bg-obsidian-800/20 transition-colors">
+                    <div className="size-9 grid place-items-center rounded-lg border border-violet-glow/30 bg-violet-glow/5 shrink-0">
+                      <GitPullRequest className="size-4 text-violet-glow" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{a.title}</p>
+                      <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                        @{a.authorLogin} · {new Date(a.date).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                    <span className={`text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded border shrink-0 ${tone}`}>
+                      {a.state === "merged" ? "mesclado" : a.state === "open" ? "aberto" : a.state === "closed" ? "fechado" : a.state}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </GlassCard>
+      </div>
     </div>
   );
 }
