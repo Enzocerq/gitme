@@ -112,7 +112,7 @@ cp .env.example .env
 npm run dev
 ```
 
-A aplicação estará disponível em `http://localhost:3000`.
+A aplicação estará disponível em `http://localhost:8080`.
 
 > **Pré-requisito:** o backend [GitHubPoc](../GitHubPoc) deve estar rodando em `http://localhost:8081` antes de usar a aplicação.
 
