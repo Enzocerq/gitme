@@ -145,7 +145,7 @@ function DashboardPage() {
         />
 
         <KpiCard
-          label="Lead Time"
+          label="Tempo de Lead"
           value={`${leadTimeDays.toFixed(1)}d`}
           delta={flow ? { value: 0, invert: true } : undefined}
           hint="Da issue ao merge"
@@ -163,7 +163,7 @@ function DashboardPage() {
         <GlassCard className="lg:col-span-2 p-4 md:p-6">
           <div className="flex flex-wrap items-start justify-between gap-2 mb-4 md:mb-6">
             <div>
-              <h3 className="text-base font-semibold text-foreground">Throughput Velocity</h3>
+              <h3 className="text-base font-semibold text-foreground">Velocidade de Entrega</h3>
               <p className="text-xs text-muted-foreground">Commits e PRs no período</p>
             </div>
             <div className="flex gap-4">
@@ -230,7 +230,7 @@ function DashboardPage() {
         <GlassCard className="overflow-hidden">
           <div className="p-6 border-b border-border flex items-center justify-between">
             <h3 className="text-base font-semibold text-foreground">Atividade Recente</h3>
-            <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Live</span>
+            <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Ao vivo</span>
           </div>
           {recentActivity.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">Sem atividade no período.</div>
@@ -273,7 +273,7 @@ function DashboardPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-base font-bold font-mono text-emerald-glow">{m.reviews}</p>
-                      <p className="text-[10px] font-mono text-muted-foreground uppercase">reviews</p>
+                      <p className="text-[10px] font-mono text-muted-foreground uppercase">revisões</p>
                     </div>
                   </li>
                 ))}

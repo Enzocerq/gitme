@@ -19,26 +19,26 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
 
 const nav = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/activity", label: "Activity", icon: Activity },
-  { to: "/repositories", label: "Repositories", icon: GitBranch },
-  { to: "/collaboration", label: "Collaboration", icon: Users },
+  { to: "/dashboard", label: "Painel", icon: LayoutDashboard },
+  { to: "/activity", label: "Atividade", icon: Activity },
+  { to: "/repositories", label: "Repositórios", icon: GitBranch },
+  { to: "/collaboration", label: "Colaboração", icon: Users },
   { to: "/insights", label: "Insights", icon: Sparkles },
 ] as const;
 
 const titles: Record<string, { title: string; subtitle: string }> = {
-  "/dashboard": { title: "Engineering Overview", subtitle: "Resumo executivo de produtividade e fluxo" },
-  "/activity": { title: "Activity & Flow", subtitle: "Commits, PRs, issues e tempos de resolução" },
-  "/repositories": { title: "Repositories", subtitle: "Análise de esforço por repositório" },
-  "/collaboration": { title: "Team Collaboration", subtitle: "Você vs equipe e suporte à comunidade" },
-  "/insights": { title: "Insights Engine", subtitle: "Diagnósticos automáticos e padrões de commit" },
+  "/dashboard": { title: "Visão Geral de Engenharia", subtitle: "Resumo executivo de produtividade e fluxo" },
+  "/activity": { title: "Atividade & Fluxo", subtitle: "Commits, PRs, issues e tempos de resolução" },
+  "/repositories": { title: "Repositórios", subtitle: "Análise de esforço por repositório" },
+  "/collaboration": { title: "Colaboração da Equipe", subtitle: "Você vs equipe e suporte à comunidade" },
+  "/insights": { title: "Motor de Insights", subtitle: "Diagnósticos automáticos e padrões de commit" },
 };
 
 export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const { isDark, toggle } = useTheme();
-  const meta = titles[pathname] ?? { title: "GITME", subtitle: "Real-time engineering intelligence" };
+  const meta = titles[pathname] ?? { title: "GITME", subtitle: "Inteligência de engenharia em tempo real" };
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const user = getUser();
@@ -191,7 +191,7 @@ export function AppShell() {
           <div className="flex items-center gap-2 md:gap-3 shrink-0">
             <div className="hidden sm:flex bg-obsidian-900/60 px-3 py-2 border border-border rounded-lg text-[10px] font-mono text-emerald-glow items-center gap-2 backdrop-blur-xl uppercase tracking-widest">
               <span className="size-2 rounded-full bg-emerald-glow animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-              GitHub Connected
+              GitHub Conectado
             </div>
             <button
               onClick={toggle}

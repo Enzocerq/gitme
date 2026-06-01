@@ -152,9 +152,9 @@ function CollaborationPage() {
           <table className="w-full text-left min-w-[480px]">
             <thead>
               <tr className="bg-obsidian-950/50 text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
-                <th className="px-6 py-3 font-medium">Developer</th>
-                <th className="px-6 py-3 text-center font-medium">Reviews</th>
-                <th className="px-6 py-3 font-medium">Share</th>
+                <th className="px-6 py-3 font-medium">Desenvolvedor</th>
+                <th className="px-6 py-3 text-center font-medium">Revisões</th>
+                <th className="px-6 py-3 font-medium">Participação</th>
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-border">

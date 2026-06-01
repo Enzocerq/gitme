@@ -51,7 +51,7 @@ function LoginPage() {
               <span className="text-violet-deep">me</span>
             </p>
             <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
-              Git Metrics & Insights
+              Métricas Git & Insights
             </p>
           </div>
         </div>

@@ -82,7 +82,7 @@ export async function startSeed(repos: string[]): Promise<"started" | "already_r
     body: JSON.stringify({ repos }),
   });
   if (res.status === 409) return "already_running";
-  if (!res.ok) throw new Error("Failed to start ETL seed");
+  if (!res.ok) throw new Error("Falha ao iniciar a ingestão ETL");
   return "started";
 }
 

@@ -141,8 +141,8 @@ function InsightsPage() {
 
   const bugFixRatioData = ind
     ? [
-        { name: "Features (feat)", value: ind.feat, color: "var(--emerald-glow)" },
-        { name: "Bug Fixing (fix)", value: ind.fix, color: "var(--ruby-glow)" },
+        { name: "Funcionalidades (feat)", value: ind.feat, color: "var(--emerald-glow)" },
+        { name: "Correções (fix)", value: ind.fix, color: "var(--ruby-glow)" },
         { name: "Outros", value: ind.other, color: "var(--violet-glow)" },
       ].filter((d) => d.value > 0)
     : [];

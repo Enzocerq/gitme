@@ -47,12 +47,12 @@ function ActivityPage() {
           hint="dos últimos 365 dias"
         />
         <KpiCard
-          label="Cycle Time"
+          label="Tempo de Ciclo"
           value={isLoading ? "…" : `${((ind?.cycleTimeHours ?? 0)).toFixed(1)}h`}
           hint="primeiro commit → merge"
         />
         <KpiCard
-          label="Lead Time"
+          label="Tempo de Lead"
           value={isLoading ? "…" : `${((ind?.leadTimeHours ?? 0) / 24).toFixed(1)}d`}
           hint="issue criada → resolvida"
         />
@@ -66,7 +66,7 @@ function ActivityPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <GlassCard className="p-4 md:p-6">
           <div className="mb-4 md:mb-6">
-            <h3 className="text-base font-semibold text-foreground">Time in Review</h3>
+            <h3 className="text-base font-semibold text-foreground">Tempo em Revisão</h3>
             <p className="text-xs text-muted-foreground">Horas médias aguardando aprovação por dia</p>
           </div>
           {reviewSeries.length === 0 ? (
@@ -106,14 +106,14 @@ function ActivityPage() {
           <div className="space-y-5 mt-4">
             {flow && [
               {
-                label: "Cycle Time",
+                label: "Tempo de Ciclo",
                 you: `${(flow.individual.cycleTimeHours ?? 0).toFixed(1)}h`,
                 team: `${(flow.team.cycleTimeHours ?? 0).toFixed(1)}h`,
                 ratio: (flow.team.cycleTimeHours ?? 0) > 0 ? Math.min((flow.individual.cycleTimeHours ?? 0) / flow.team.cycleTimeHours!, 2) : 0,
                 invert: true,
               },
               {
-                label: "Lead Time",
+                label: "Tempo de Lead",
                 you: `${((flow.individual.leadTimeHours ?? 0) / 24).toFixed(1)}d`,
                 team: `${((flow.team.leadTimeHours ?? 0) / 24).toFixed(1)}d`,
                 ratio: (flow.team.leadTimeHours ?? 0) > 0 ? Math.min((flow.individual.leadTimeHours ?? 0) / flow.team.leadTimeHours!, 2) : 0,
@@ -127,7 +127,7 @@ function ActivityPage() {
                 invert: false,
               },
               {
-                label: "Time in Review",
+                label: "Tempo em Revisão",
                 you: `${(flow.individual.timeInReviewHours ?? 0).toFixed(1)}h`,
                 team: `${(flow.team.timeInReviewHours ?? 0).toFixed(1)}h`,
                 ratio: (flow.team.timeInReviewHours ?? 0) > 0 ? Math.min((flow.individual.timeInReviewHours ?? 0) / flow.team.timeInReviewHours!, 2) : 0,
@@ -184,7 +184,7 @@ function ActivityPage() {
                     </p>
                   </div>
                   <span className={`text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded border ${tone}`}>
-                    {a.state}
+                    {a.state === "merged" ? "mesclado" : a.state === "open" ? "aberto" : a.state === "closed" ? "fechado" : a.state}
                   </span>
                   {a.kind === "commit" || a.kind === "pr" ? (
                     <CheckCircle2 className="size-4 text-emerald-glow/70" />
