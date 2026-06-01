@@ -32,7 +32,7 @@ function ActivityPage() {
   const ind = flow?.individual;
   const reviewSeries = (flow?.timeInReviewSeries ?? [])
     .filter((p) => p.avgHours != null && p.avgHours > 0)
-    .slice(-10)
+    .slice(-30)
     .map((p) => ({
       date: p.date.slice(5),
       avgMinutes: Math.round(p.avgHours! * 60),
@@ -79,16 +79,16 @@ function ActivityPage() {
           ) : (
             <div className="h-52 md:h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={reviewSeries} layout="vertical" margin={{ left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.05)" horizontal={false} />
-                  <XAxis type="number" stroke="var(--obsidian-400)" fontSize={10} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="date" stroke="var(--obsidian-400)" fontSize={11} tickLine={false} axisLine={false} />
+                <BarChart data={reviewSeries} margin={{ bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.05)" vertical={false} />
+                  <XAxis dataKey="date" stroke="var(--obsidian-400)" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--obsidian-400)" fontSize={10} tickLine={false} axisLine={false} />
                   <Tooltip
                     cursor={{ fill: "oklch(1 0 0 / 0.04)" }}
                     contentStyle={{ background: "var(--obsidian-950)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
                     formatter={(v: number) => [`${v} min`, "Tempo em revisão"]}
                   />
-                  <Bar dataKey="avgMinutes" radius={[0, 6, 6, 0]}>
+                  <Bar dataKey="avgMinutes" radius={[6, 6, 0, 0]}>
                     {reviewSeries.map((d, i) => (
                       <Cell
                         key={i}
