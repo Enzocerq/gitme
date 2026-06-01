@@ -191,3 +191,21 @@ export interface InsightsMetrics {
 export async function getInsightsMetrics(params: MetricParams): Promise<InsightsMetrics> {
   return apiFetch<InsightsMetrics>(`/api/poc/metrics/insights?${metricQs(params)}`);
 }
+
+// Productivity Score
+export interface ProductivityScoreResponse {
+  scoreFinal: number;
+  entrega: number;
+  eficiencia: number;
+  qualidade: number;
+  colaboracao: number;
+  consistencia: number;
+}
+
+export async function getProductivityScore(authorLogin: string, from: string, to: string): Promise<ProductivityScoreResponse> {
+  const qs = new URLSearchParams({
+    startDate: `${from}T00:00:00`,
+    endDate: `${to}T23:59:59`,
+  }).toString();
+  return apiFetch<ProductivityScoreResponse>(`/api/productivity-score/${encodeURIComponent(authorLogin)}?${qs}`);
+}

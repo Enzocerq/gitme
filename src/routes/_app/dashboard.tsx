@@ -11,10 +11,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { GitCommit, GitPullRequest, Gauge, CheckCircle2, ArrowUpRight, Loader2 } from "lucide-react";
+import { GitCommit, GitPullRequest, Gauge, CheckCircle2, ArrowUpRight, Loader2, Zap } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { KpiCard } from "@/components/kpi-card";
-import { getOverviewMetrics, getFlowMetrics, getCollaborationMetrics } from "@/lib/api";
+import { getOverviewMetrics, getFlowMetrics, getCollaborationMetrics, getProductivityScore } from "@/lib/api";
+import type { ProductivityScoreResponse } from "@/lib/api";
 import { getUser, getSelectedRepo, defaultDateRange } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/dashboard")({
@@ -57,6 +58,137 @@ function LoadingSkeleton() {
   );
 }
 
+const SCORE_COMPONENTS: Array<{
+  key: keyof Omit<ProductivityScoreResponse, "scoreFinal">;
+  label: string;
+  weight: number;
+  color: string;
+  meta: string;
+}> = [
+  { key: "entrega",      label: "Entrega",      weight: 35, color: "#10b981", meta: "meta: 50 unid." },
+  { key: "eficiencia",   label: "Eficiência",   weight: 25, color: "#8b5cf6", meta: "meta: 3 dias" },
+  { key: "qualidade",    label: "Qualidade",    weight: 20, color: "#f59e0b", meta: "meta: 80% merge" },
+  { key: "colaboracao",  label: "Colaboração",  weight: 10, color: "#06b6d4", meta: "meta: 8 reviews" },
+  { key: "consistencia", label: "Consistência", weight: 10, color: "#f97316", meta: "meta: 20 dias" },
+];
+
+function getScoreLabel(s: number) {
+  if (s >= 90) return "Excelente";
+  if (s >= 75) return "Ótimo";
+  if (s >= 60) return "Bom";
+  if (s >= 45) return "Regular";
+  return "Crítico";
+}
+
+function getScoreColor(s: number) {
+  if (s >= 75) return "#10b981";
+  if (s >= 50) return "#f59e0b";
+  return "#ef4444";
+}
+
+function ProductivityScorePanel({ data, loading }: { data?: ProductivityScoreResponse; loading: boolean }) {
+  const r = 52;
+  const circ = 2 * Math.PI * r;
+  const score = data?.scoreFinal ?? 0;
+  const color = getScoreColor(score);
+  const label = getScoreLabel(score);
+
+  return (
+    <GlassCard className="p-4 md:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-5">
+        <div className="flex items-center gap-2">
+          <Zap className="size-4" style={{ color: "#f59e0b" }} />
+          <h3 className="text-base font-semibold text-foreground">Score de Produtividade</h3>
+        </div>
+        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">últimos 30 dias</span>
+      </div>
+
+      {loading && !data ? (
+        <div className="flex items-center gap-6 animate-pulse">
+          <div className="w-36 h-36 rounded-full bg-obsidian-900/60 flex-shrink-0" />
+          <div className="flex-1 space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="h-3 w-32 rounded bg-obsidian-900/60" />
+                <div className="h-1.5 rounded-full bg-obsidian-900/60" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 md:gap-10">
+          {/* Donut ring */}
+          <div className="relative w-36 h-36 flex-shrink-0">
+            <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90" aria-hidden="true">
+              <circle cx="60" cy="60" r={r} fill="none" stroke="oklch(1 0 0 / 0.06)" strokeWidth="9" />
+              <circle
+                cx="60" cy="60" r={r} fill="none"
+                stroke={color}
+                strokeWidth="9"
+                strokeLinecap="round"
+                strokeDasharray={circ}
+                strokeDashoffset={circ - (score / 100) * circ}
+                style={{ filter: `drop-shadow(0 0 8px ${color})` }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-4xl font-bold font-mono leading-none" style={{ color }}>
+                {score.toFixed(0)}
+              </span>
+              <span className="text-[10px] font-mono text-muted-foreground tracking-widest mt-0.5">/100</span>
+              <span
+                className="text-[9px] font-mono uppercase tracking-widest mt-2 px-2 py-0.5 rounded-full border"
+                style={{ color, borderColor: `${color}40` }}
+              >
+                {label}
+              </span>
+            </div>
+          </div>
+
+          {/* Component bars */}
+          <div className="flex-1 w-full space-y-3">
+            {SCORE_COMPONENTS.map((comp) => {
+              const value = data ? data[comp.key] : 0;
+              const clamped = Math.min(100, Math.max(0, value));
+              return (
+                <div key={comp.key}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2 text-[11px] font-mono">
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ background: comp.color, boxShadow: `0 0 4px ${comp.color}` }}
+                      />
+                      <span className="text-foreground">{comp.label}</span>
+                      <span className="text-muted-foreground/50">{comp.weight}%</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] font-mono">
+                      <span className="text-muted-foreground/50">{comp.meta}</span>
+                      <span className="tabular-nums font-bold" style={{ color: comp.color }}>
+                        {clamped.toFixed(0)}
+                        <span className="text-muted-foreground font-normal">/100</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-700 ease-out"
+                      style={{
+                        width: `${clamped}%`,
+                        background: comp.color,
+                        boxShadow: `0 0 6px ${comp.color}`,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
 function DashboardPage() {
   const user = getUser();
   const repo = getSelectedRepo();
@@ -82,6 +214,13 @@ function DashboardPage() {
     queryKey: ["collaboration", params],
     queryFn: () => getCollaborationMetrics(params),
     enabled: !!repo && !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const { data: scoreData, isLoading: loadingScore } = useQuery({
+    queryKey: ["productivityScore", user?.login, from, to],
+    queryFn: () => getProductivityScore(user!.login, from, to),
+    enabled: !!user,
     staleTime: 1000 * 60 * 5,
   });
 
@@ -158,6 +297,9 @@ function DashboardPage() {
           hint={`Equipe: ${overview.team.commits}`}
         />
       </div>
+
+      {/* Productivity Score */}
+      <ProductivityScorePanel data={scoreData} loading={loadingScore} />
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
