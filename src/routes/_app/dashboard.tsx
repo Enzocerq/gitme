@@ -385,15 +385,17 @@ function DashboardPage() {
             <ul className="divide-y divide-border">
               {recentActivity.map((a, i) => {
                 const Icon = a.type === "commit" ? GitCommit : a.type === "pr" ? GitPullRequest : CheckCircle2;
-                const dotColor = a.status === "ok" ? "bg-emerald-glow" : a.status === "merged" ? "bg-violet-glow" : "bg-amber-glow";
+                const iconColor = a.type === "commit" ? "text-emerald-glow" : "text-violet-glow";
+                const iconBorder = a.type === "commit" ? "border-emerald-glow/30 bg-emerald-glow/5" : "border-violet-glow/30 bg-violet-glow/5";
                 return (
                   <li key={i} className="px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 md:gap-4 hover:bg-obsidian-800/20 transition-colors">
-                    <Icon className="size-4 text-muted-foreground shrink-0" />
+                    <div className={`size-9 grid place-items-center rounded-lg border bg-obsidian-900/60 shrink-0 ${iconBorder}`}>
+                      <Icon className={`size-4 ${iconColor}`} />
+                    </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground truncate">{a.title}</p>
                       <p className="text-[11px] text-muted-foreground font-mono">{a.repo} • {a.time}</p>
                     </div>
-                    <span className={`size-2 rounded-full ${dotColor}`} />
                   </li>
                 );
               })}
