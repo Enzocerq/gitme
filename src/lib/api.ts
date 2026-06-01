@@ -58,6 +58,15 @@ export async function getUserRepos(): Promise<GithubRepo[]> {
   return apiFetch<GithubRepo[]>("/api/poc/github/repositorios");
 }
 
+export async function getDemoRepos(): Promise<GithubRepo[]> {
+  return apiFetch<GithubRepo[]>("/api/poc/demo/repos");
+}
+
+export async function getDemoTopContributor(repoIds: number[]): Promise<{ login: string }> {
+  const qs = repoIds.map((id) => `repoIds=${id}`).join("&");
+  return apiFetch<{ login: string }>(`/api/poc/demo/top-contributor?${qs}`);
+}
+
 // ---------- ETL ----------
 
 export interface SeedStatus {

@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getUserRepos, startSeed, getSeedStatus, type GithubRepo } from "@/lib/api";
-import { getUser, setSelectedRepos, isAuthenticated } from "@/lib/auth";
-import { GithubIcon, GitBranch, Search, Loader2, Star, CheckCircle2, AlertTriangle } from "lucide-react";
+import { getUserRepos, getDemoRepos, getDemoTopContributor, startSeed, getSeedStatus, type GithubRepo } from "@/lib/api";
+import { getUser, setUser, setSelectedRepos, isAuthenticated, isSimulationMode } from "@/lib/auth";
+import { GithubIcon, GitBranch, Search, Loader2, Star, CheckCircle2, AlertTriangle, FlaskConical } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 
 export const Route = createFileRoute("/select-repos")({
@@ -25,6 +25,7 @@ interface SeedState {
 function SelectReposPage() {
   const navigate = useNavigate();
   const user = getUser();
+  const isDemo = isSimulationMode();
 
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<GithubRepo[]>([]);
@@ -40,19 +41,19 @@ function SelectReposPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
+    if (!isAuthenticated() && !isDemo) {
       navigate({ to: "/login" });
     }
-  }, [navigate]);
+  }, [navigate, isDemo]);
 
   const {
     data: repos,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["user-repos"],
-    queryFn: getUserRepos,
-    enabled: isAuthenticated(),
+    queryKey: isDemo ? ["demo-repos"] : ["user-repos"],
+    queryFn: isDemo ? getDemoRepos : getUserRepos,
+    enabled: isDemo || isAuthenticated(),
     staleTime: 1000 * 60 * 5,
   });
 
@@ -81,6 +82,34 @@ function SelectReposPage() {
 
   async function handleAnalyze() {
     if (selected.length === 0) return;
+
+    if (isDemo) {
+      const repoIds = selected.map((r) => r.id);
+      try {
+        const { login } = await getDemoTopContributor(repoIds);
+        if (login) {
+          setUser({
+            login,
+            name: login,
+            avatarUrl: `https://github.com/${login}.png`,
+          });
+        }
+      } catch {
+        // mantém o usuário demo atual se a requisição falhar
+      }
+      setSelectedRepos(
+        selected.map((r) => ({
+          id: r.id,
+          name: r.name,
+          fullName: `${r.owner.login}/${r.name}`,
+          owner: r.owner.login,
+          description: r.description,
+        }))
+      );
+      navigate({ to: "/dashboard" });
+      return;
+    }
+
     const fullNames = selected.map((r) => `${r.owner.login}/${r.name}`);
 
     setSeedState({ phase: "seeding", message: `Iniciando ingestão de ${fullNames.length} repositório(s)…`, commitsIngested: 0, pullRequestsIngested: 0, issuesIngested: 0, repoNames: fullNames });
@@ -150,16 +179,22 @@ function SelectReposPage() {
             className="size-8 rounded-lg flex items-center justify-center"
             style={{ background: "linear-gradient(135deg, var(--color-emerald-glow), var(--color-violet-deep))" }}
           >
-            <GithubIcon className="size-4 text-primary-foreground" />
+            {isDemo ? (
+              <FlaskConical className="size-4 text-primary-foreground" />
+            ) : (
+              <GithubIcon className="size-4 text-primary-foreground" />
+            )}
           </div>
           <div>
             <p className="font-bold text-base tracking-tight">
               <span className="text-emerald-glow">git</span>
               <span className="text-violet-deep">me</span>
             </p>
-            <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Seleção de repositórios</p>
+            <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+              {isDemo ? "Modo demonstração" : "Seleção de repositórios"}
+            </p>
           </div>
-          {user && (
+          {!isDemo && user && (
             <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
               <img
                 src={user.avatarUrl}
@@ -169,13 +204,22 @@ function SelectReposPage() {
               <span>@{user.login}</span>
             </div>
           )}
+          {isDemo && (
+            <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="px-2 py-0.5 rounded-full border border-violet-deep/40 bg-violet-deep/10 text-violet-deep text-[10px] font-mono uppercase tracking-wider">
+                Demo
+              </span>
+            </div>
+          )}
         </div>
 
         <h1 className="text-2xl font-semibold tracking-tight text-foreground mb-1">
-          Escolha os repositórios
+          {isDemo ? "Repositórios disponíveis" : "Escolha os repositórios"}
         </h1>
         <p className="text-sm text-muted-foreground mb-6">
-          Selecione um ou mais repositórios para análise de métricas de produtividade.
+          {isDemo
+            ? "Selecione um dos repositórios abaixo para explorar as métricas de produtividade."
+            : "Selecione um ou mais repositórios para análise de métricas de produtividade."}
         </p>
 
         {/* Search */}
@@ -281,14 +325,18 @@ function SelectReposPage() {
           disabled={selected.length === 0}
           className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl bg-foreground text-obsidian-950 font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-[0_0_24px_rgba(56,189,248,0.4)] hover:bg-emerald-glow"
         >
-          <GithubIcon className="size-5" />
+          {isDemo ? <FlaskConical className="size-5" /> : <GithubIcon className="size-5" />}
           {selected.length > 0
-            ? `Analisar ${selected.length} repositório${selected.length > 1 ? "s" : ""}`
+            ? isDemo
+              ? `Explorar ${selected.length} repositório${selected.length > 1 ? "s" : ""}`
+              : `Analisar ${selected.length} repositório${selected.length > 1 ? "s" : ""}`
             : "Selecione repositórios"}
         </button>
 
         <p className="text-center text-xs text-muted-foreground mt-4">
-          Os dados serão ingeridos na primeira vez. Repositórios grandes podem levar alguns minutos.
+          {isDemo
+            ? "Os dados já estão carregados. Você será redirecionado imediatamente."
+            : "Os dados serão ingeridos na primeira vez. Repositórios grandes podem levar alguns minutos."}
         </p>
       </div>
     </div>

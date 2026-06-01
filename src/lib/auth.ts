@@ -63,11 +63,28 @@ export function setSelectedRepo(repo: SelectedRepo): void {
   setSelectedRepos([repo]);
 }
 
+const SIMULATION_KEY = "simulation_mode";
+
+export function setSimulationMode(active: boolean): void {
+  if (!isClient()) return;
+  if (active) {
+    localStorage.setItem(SIMULATION_KEY, "true");
+  } else {
+    localStorage.removeItem(SIMULATION_KEY);
+  }
+}
+
+export function isSimulationMode(): boolean {
+  if (!isClient()) return false;
+  return localStorage.getItem(SIMULATION_KEY) === "true";
+}
+
 export function logout(): void {
   if (!isClient()) return;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(REPOS_KEY);
+  localStorage.removeItem(SIMULATION_KEY);
 }
 
 export function isAuthenticated(): boolean {
