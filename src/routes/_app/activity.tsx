@@ -30,11 +30,14 @@ function ActivityPage() {
   });
 
   const ind = flow?.individual;
-  const reviewSeries = (flow?.timeInReviewSeries ?? []).slice(-10).map((p) => ({
-    date: p.date.slice(5),
-    avgHours: Math.round((p.avgHours ?? 0) * 10) / 10,
-    status: (p.avgHours ?? 0) > 48 ? "blocked" : (p.avgHours ?? 0) > 16 ? "review" : "ok",
-  }));
+  const reviewSeries = (flow?.timeInReviewSeries ?? [])
+    .filter((p) => p.avgHours != null && p.avgHours > 0)
+    .slice(-10)
+    .map((p) => ({
+      date: p.date.slice(5),
+      avgMinutes: Math.round(p.avgHours! * 60),
+      status: p.avgHours! > 48 ? "blocked" : p.avgHours! > 16 ? "review" : "ok",
+    }));
 
   const recentActivity = (flow?.recent ?? []).slice(0, 8);
 
@@ -67,7 +70,7 @@ function ActivityPage() {
         <GlassCard className="p-4 md:p-6">
           <div className="mb-4 md:mb-6">
             <h3 className="text-base font-semibold text-foreground">Tempo em Revisão</h3>
-            <p className="text-xs text-muted-foreground">Horas médias aguardando aprovação por dia</p>
+            <p className="text-xs text-muted-foreground">Minutos médios aguardando aprovação por dia</p>
           </div>
           {reviewSeries.length === 0 ? (
             <div className="h-52 md:h-72 flex items-center justify-center text-sm text-muted-foreground">
@@ -83,8 +86,9 @@ function ActivityPage() {
                   <Tooltip
                     cursor={{ fill: "oklch(1 0 0 / 0.04)" }}
                     contentStyle={{ background: "var(--obsidian-950)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                    formatter={(v: number) => [`${v} min`, "Tempo em revisão"]}
                   />
-                  <Bar dataKey="avgHours" radius={[0, 6, 6, 0]}>
+                  <Bar dataKey="avgMinutes" radius={[0, 6, 6, 0]}>
                     {reviewSeries.map((d, i) => (
                       <Cell
                         key={i}
@@ -101,7 +105,7 @@ function ActivityPage() {
         <GlassCard className="p-4 md:p-6">
           <div className="mb-4 md:mb-6">
             <h3 className="text-base font-semibold text-foreground">Métricas da Equipe</h3>
-            <p className="text-xs text-muted-foreground">Comparativo individual vs equipe</p>
+            <p className="text-xs text-muted-foreground">Comparativo individual vs média da equipe</p>
           </div>
           <div className="space-y-5 mt-4">
             {flow && [
@@ -128,13 +132,13 @@ function ActivityPage() {
               },
               {
                 label: "Tempo em Revisão",
-                you: `${(flow.individual.timeInReviewHours ?? 0).toFixed(1)}h`,
-                team: `${(flow.team.timeInReviewHours ?? 0).toFixed(1)}h`,
+                you: `${Math.round((flow.individual.timeInReviewHours ?? 0) * 60)} min`,
+                team: `${Math.round((flow.team.timeInReviewHours ?? 0) * 60)} min`,
                 ratio: (flow.team.timeInReviewHours ?? 0) > 0 ? Math.min((flow.individual.timeInReviewHours ?? 0) / flow.team.timeInReviewHours!, 2) : 0,
                 invert: true,
               },
             ].map((b) => {
-              const pct = Math.round(b.ratio * 50);
+              const pct = b.ratio > 0 ? Math.max(Math.round(b.ratio * 50), 2) : 0;
               const good = b.invert ? b.ratio <= 1 : b.ratio >= 1;
               const barColor = good ? "bg-emerald-glow" : "bg-ruby-glow";
               return (
@@ -142,7 +146,7 @@ function ActivityPage() {
                   <div className="flex justify-between text-xs mb-1.5">
                     <span className="text-muted-foreground">{b.label}</span>
                     <span className="font-mono text-foreground">
-                      Você: {b.you} · Equipe: {b.team}
+                      Você: {b.you} · Média da equipe: {b.team}
                     </span>
                   </div>
                   <div className="h-2 w-full bg-obsidian-800 rounded-full overflow-hidden">
