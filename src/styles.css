@@ -39,6 +39,7 @@
 
   --color-emerald-glow: var(--emerald-glow);
   --color-violet-glow: var(--violet-glow);
+  --color-violet-deep: var(--violet-deep);
   --color-ruby-glow: var(--ruby-glow);
   --color-amber-glow: var(--amber-glow);
 
@@ -64,9 +65,13 @@
 :root {
   --radius: 0.75rem;
 
+  --gradient-primary: linear-gradient(135deg, oklch(0.62 0.17 220), oklch(0.38 0.28 285));
+  --shadow-glow: 0 0 40px oklch(0.62 0.17 220 / 0.25);
+
   /* Glow accents (shared) */
-  --emerald-glow: oklch(0.62 0.17 162);
+  --emerald-glow: oklch(0.62 0.17 220);
   --violet-glow: oklch(0.55 0.2 295);
+  --violet-deep: oklch(0.38 0.28 285);
   --ruby-glow: oklch(0.55 0.22 18);
   --amber-glow: oklch(0.68 0.16 75);
 
@@ -114,9 +119,8 @@
   --sidebar-ring: var(--emerald-glow);
 
   --gradient-radial-mesh:
-    radial-gradient(ellipse 80% 60% at 15% 10%, color-mix(in oklab, var(--emerald-glow) 8%, transparent), transparent 60%),
-    radial-gradient(ellipse 70% 50% at 85% 20%, color-mix(in oklab, var(--violet-glow) 10%, transparent), transparent 60%),
-    radial-gradient(ellipse 60% 50% at 50% 95%, color-mix(in oklab, var(--ruby-glow) 6%, transparent), transparent 65%);
+    radial-gradient(ellipse 80% 60% at 50% 5%, color-mix(in oklab, var(--emerald-glow) 8%, transparent), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 50% 95%, color-mix(in oklab, var(--violet-deep) 8%, transparent), transparent 65%);
   --shadow-glow-emerald: 0 0 24px color-mix(in oklab, var(--emerald-glow) 25%, transparent);
   --shadow-glow-violet: 0 0 24px color-mix(in oklab, var(--violet-glow) 25%, transparent);
 }
@@ -130,8 +134,9 @@ html.dark {
   --obsidian-400: oklch(0.68 0.025 255);
 
   /* Glow accents (brighter in dark) */
-  --emerald-glow: oklch(0.74 0.17 162);
+  --emerald-glow: oklch(0.74 0.17 220);
   --violet-glow: oklch(0.68 0.2 295);
+  --violet-deep: oklch(0.50 0.32 285);
   --ruby-glow: oklch(0.68 0.22 18);
   --amber-glow: oklch(0.8 0.16 75);
 
@@ -172,9 +177,8 @@ html.dark {
   --sidebar-ring: var(--emerald-glow);
 
   --gradient-radial-mesh:
-    radial-gradient(ellipse 80% 60% at 15% 10%, color-mix(in oklab, var(--emerald-glow) 18%, transparent), transparent 60%),
-    radial-gradient(ellipse 70% 50% at 85% 20%, color-mix(in oklab, var(--violet-glow) 22%, transparent), transparent 60%),
-    radial-gradient(ellipse 60% 50% at 50% 95%, color-mix(in oklab, var(--ruby-glow) 14%, transparent), transparent 65%);
+    radial-gradient(ellipse 80% 60% at 50% 5%, color-mix(in oklab, var(--emerald-glow) 18%, transparent), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 50% 95%, color-mix(in oklab, var(--violet-deep) 16%, transparent), transparent 65%);
   --shadow-glow-emerald: 0 0 24px color-mix(in oklab, var(--emerald-glow) 35%, transparent);
   --shadow-glow-violet: 0 0 24px color-mix(in oklab, var(--violet-glow) 35%, transparent);
 }

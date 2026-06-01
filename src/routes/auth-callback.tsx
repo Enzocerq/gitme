@@ -5,7 +5,7 @@ import { setToken, setUser, isAuthenticated } from "@/lib/auth";
 import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/auth-callback")({
-  head: () => ({ meta: [{ title: "Autenticando — GitHealth" }] }),
+  head: () => ({ meta: [{ title: "Autenticando — GITME" }] }),
   component: AuthCallbackPage,
 });
 

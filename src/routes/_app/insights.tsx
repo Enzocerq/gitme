@@ -9,7 +9,7 @@ import { getUser, getSelectedRepo, defaultDateRange } from "@/lib/auth";
 export const Route = createFileRoute("/_app/insights")({
   head: () => ({
     meta: [
-      { title: "Insights — GitHealth" },
+      { title: "Insights — GITME" },
       { name: "description", content: "Classificação de commits por tipo e diagnósticos de produtividade." },
     ],
   }),
@@ -47,7 +47,7 @@ function ProductivityHeatmap({ heatmap }: { heatmap: number[][] }) {
 
   return (
     <GlassCard className="p-6">
-      <div className="flex items-center justify-between mb-1">
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
         <div>
           <h3 className="text-base font-semibold text-foreground">Mapa de Produtividade</h3>
           <p className="text-xs text-muted-foreground mt-0.5">Commits por dia da semana × hora do dia</p>
@@ -212,11 +212,11 @@ function InsightsPage() {
   const autoInsights = buildInsights();
 
   return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="space-y-6 md:space-y-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <GlassCard className="p-6">
           <h3 className="text-base font-semibold text-foreground mb-1">Seus Commits por Tipo</h3>
-          <p className="text-xs text-muted-foreground mb-6">Classificação por Conventional Commits</p>
+          <p className="text-xs text-muted-foreground mb-4 md:mb-6">Classificação por Conventional Commits</p>
           {isLoading ? (
             <div className="h-56 flex items-center justify-center animate-pulse">
               <div className="size-28 rounded-full bg-obsidian-800/60" />
@@ -258,7 +258,7 @@ function InsightsPage() {
 
         <GlassCard className="p-6">
           <h3 className="text-base font-semibold text-foreground mb-1">Equipe por Tipo</h3>
-          <p className="text-xs text-muted-foreground mb-6">Distribuição da equipe inteira</p>
+          <p className="text-xs text-muted-foreground mb-4 md:mb-6">Distribuição da equipe inteira</p>
           {isLoading ? (
             <div className="h-56 flex items-center justify-center animate-pulse">
               <div className="size-28 rounded-full bg-obsidian-800/60" />

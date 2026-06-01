@@ -10,7 +10,7 @@ import { getUser, getSelectedRepo, defaultDateRange } from "@/lib/auth";
 export const Route = createFileRoute("/_app/activity")({
   head: () => ({
     meta: [
-      { title: "Atividade — GitHealth" },
+      { title: "Atividade — GITME" },
       { name: "description", content: "Commits, PRs, issues, cycle time, lead time e TCM." },
     ],
   }),
@@ -39,8 +39,8 @@ function ActivityPage() {
   const recentActivity = (flow?.recent ?? []).slice(0, 8);
 
   return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="space-y-6 md:space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <KpiCard
           label="Dias Ativos"
           value={isLoading ? "…" : `${ind?.activeDays ?? 0}`}
@@ -63,18 +63,18 @@ function ActivityPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <GlassCard className="p-6">
-          <div className="mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        <GlassCard className="p-4 md:p-6">
+          <div className="mb-4 md:mb-6">
             <h3 className="text-base font-semibold text-foreground">Time in Review</h3>
             <p className="text-xs text-muted-foreground">Horas médias aguardando aprovação por dia</p>
           </div>
           {reviewSeries.length === 0 ? (
-            <div className="h-72 flex items-center justify-center text-sm text-muted-foreground">
+            <div className="h-52 md:h-72 flex items-center justify-center text-sm text-muted-foreground">
               Sem dados de revisão no período.
             </div>
           ) : (
-            <div className="h-72">
+            <div className="h-52 md:h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={reviewSeries} layout="vertical" margin={{ left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.05)" horizontal={false} />
@@ -98,8 +98,8 @@ function ActivityPage() {
           )}
         </GlassCard>
 
-        <GlassCard className="p-6">
-          <div className="mb-6">
+        <GlassCard className="p-4 md:p-6">
+          <div className="mb-4 md:mb-6">
             <h3 className="text-base font-semibold text-foreground">Métricas da Equipe</h3>
             <p className="text-xs text-muted-foreground">Comparativo individual vs equipe</p>
           </div>
@@ -173,7 +173,7 @@ function ActivityPage() {
                   ? "text-emerald-glow border-emerald-glow/30 bg-emerald-glow/5"
                   : "text-amber-glow border-amber-glow/30 bg-amber-glow/5";
               return (
-                <li key={i} className="px-6 py-4 flex items-center gap-4 hover:bg-obsidian-800/20 transition-colors">
+                <li key={i} className="px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 md:gap-4 hover:bg-obsidian-800/20 transition-colors">
                   <div className="size-9 grid place-items-center rounded-lg border border-border bg-obsidian-900/60">
                     <Icon className="size-4 text-muted-foreground" />
                   </div>

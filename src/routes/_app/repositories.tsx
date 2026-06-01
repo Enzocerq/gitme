@@ -9,7 +9,7 @@ import { getUser, getSelectedRepo, defaultDateRange } from "@/lib/auth";
 export const Route = createFileRoute("/_app/repositories")({
   head: () => ({
     meta: [
-      { title: "Repositórios — GitHealth" },
+      { title: "Repositórios — GITME" },
       { name: "description", content: "Análise de esforço por repositório, participação relativa e taxa de produção." },
     ],
   }),
@@ -43,7 +43,7 @@ function ReposPage() {
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         <GlassCard className="lg:col-span-2 overflow-hidden">
           <div className="p-6 border-b border-border flex items-center justify-between">
             <div>
@@ -69,8 +69,8 @@ function ReposPage() {
           {!isLoading && repos.length > 0 && (
             <ul className="divide-y divide-border">
               {repos.map((r) => (
-                <li key={r.repoId} className="px-6 py-5 hover:bg-obsidian-800/20 transition-colors">
-                  <div className="flex items-center gap-4 mb-3">
+                <li key={r.repoId} className="px-4 py-4 md:px-6 md:py-5 hover:bg-obsidian-800/20 transition-colors">
+                  <div className="flex items-center gap-3 mb-3">
                     <div
                       className="size-10 rounded-lg grid place-items-center"
                       style={{ background: `${r.color}20`, border: `1px solid ${r.color}40` }}
@@ -83,7 +83,7 @@ function ReposPage() {
                         {r.userCommits} seus commits · {r.totalCommits} total
                       </p>
                     </div>
-                    <div className="flex gap-6 text-right">
+                    <div className="hidden sm:flex gap-4 md:gap-6 text-right shrink-0">
                       <div>
                         <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Commits</p>
                         <p className="text-base font-bold font-mono text-foreground tabular-nums">{r.userCommits}</p>
@@ -166,7 +166,7 @@ function ReposPage() {
         </GlassCard>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         <GlassCard className="p-6 flex items-center gap-4">
           <div className="size-12 rounded-xl grid place-items-center bg-emerald-glow/10 border border-emerald-glow/20">
             <GitCommit className="size-5 text-emerald-glow" />

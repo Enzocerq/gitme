@@ -20,7 +20,7 @@ import { getUser, getSelectedRepo, defaultDateRange } from "@/lib/auth";
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard — GitHealth" },
+      { title: "Dashboard — GITME" },
       { name: "description", content: "Resumo executivo de commits, PRs, score de produtividade e taxa de aceitação." },
     ],
   }),
@@ -122,9 +122,9 @@ function DashboardPage() {
   }));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <KpiCard
           label="Taxa de Aceitação"
           value={`${ind.acceptanceRate.toFixed(1)}%`}
@@ -159,9 +159,9 @@ function DashboardPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <GlassCard className="lg:col-span-2 p-6">
-          <div className="flex items-start justify-between mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        <GlassCard className="lg:col-span-2 p-4 md:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-2 mb-4 md:mb-6">
             <div>
               <h3 className="text-base font-semibold text-foreground">Throughput Velocity</h3>
               <p className="text-xs text-muted-foreground">Commits e PRs no período</p>
@@ -177,7 +177,7 @@ function DashboardPage() {
               </div>
             </div>
           </div>
-          <div className="h-72">
+          <div className="h-52 md:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={activitySeries}>
                 <defs>
@@ -201,12 +201,12 @@ function DashboardPage() {
           </div>
         </GlassCard>
 
-        <GlassCard className="p-6">
-          <div className="mb-6">
+        <GlassCard className="p-4 md:p-6">
+          <div className="mb-4 md:mb-6">
             <h3 className="text-base font-semibold text-foreground">Você vs Equipe</h3>
             <p className="text-xs text-muted-foreground">Commits diários comparados</p>
           </div>
-          <div className="h-72">
+          <div className="h-52 md:h-72">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={activitySeries}>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.05)" vertical={false} />
@@ -226,7 +226,7 @@ function DashboardPage() {
       </div>
 
       {/* Recent + Contributors */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <GlassCard className="overflow-hidden">
           <div className="p-6 border-b border-border flex items-center justify-between">
             <h3 className="text-base font-semibold text-foreground">Atividade Recente</h3>
@@ -240,7 +240,7 @@ function DashboardPage() {
                 const Icon = a.type === "commit" ? GitCommit : a.type === "pr" ? GitPullRequest : CheckCircle2;
                 const dotColor = a.status === "ok" ? "bg-emerald-glow" : a.status === "merged" ? "bg-violet-glow" : "bg-amber-glow";
                 return (
-                  <li key={i} className="px-6 py-4 flex items-center gap-4 hover:bg-obsidian-800/20 transition-colors">
+                  <li key={i} className="px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 md:gap-4 hover:bg-obsidian-800/20 transition-colors">
                     <Icon className="size-4 text-muted-foreground shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground truncate">{a.title}</p>
@@ -265,7 +265,7 @@ function DashboardPage() {
             <>
               <ul className="divide-y divide-border">
                 {contributors.map((m) => (
-                  <li key={m.login} className="px-6 py-4 flex items-center gap-4">
+                  <li key={m.login} className="px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 md:gap-4">
                     <img src={m.avatar} alt={m.name} className="size-9 rounded-full border border-border" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground truncate">{m.name}</p>

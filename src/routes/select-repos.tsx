@@ -3,11 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getUserRepos, startSeed, getSeedStatus, type GithubRepo } from "@/lib/api";
 import { getUser, setSelectedRepos, isAuthenticated } from "@/lib/auth";
-import { Github, GitBranch, Search, Loader2, Star, CheckCircle2, AlertTriangle } from "lucide-react";
+import { GithubIcon, GitBranch, Search, Loader2, Star, CheckCircle2, AlertTriangle } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 
 export const Route = createFileRoute("/select-repos")({
-  head: () => ({ meta: [{ title: "Selecionar Repositório — GitHealth" }] }),
+  head: () => ({ meta: [{ title: "Selecionar Repositório — GITME" }] }),
   component: SelectReposPage,
 });
 
@@ -139,18 +139,24 @@ function SelectReposPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-start pt-16 px-4 text-foreground">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 size-[480px] rounded-full bg-emerald-glow/15 blur-[160px]" />
-        <div className="absolute bottom-1/4 right-1/4 size-[400px] rounded-full bg-violet-glow/20 blur-[160px]" />
+        <div className="absolute top-0 left-[calc(50%-300px)] size-[600px] rounded-full bg-emerald-glow/15 blur-[160px]" />
+        <div className="absolute bottom-0 left-[calc(50%-300px)] size-[600px] rounded-full bg-violet-deep/22 blur-[160px]" />
       </div>
 
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="size-10 grid place-items-center bg-emerald-glow rounded-lg text-obsidian-950 font-bold tracking-tighter shadow-[0_0_20px_rgba(16,185,129,0.4)]">
-            GH
+          <div
+            className="size-8 rounded-lg flex items-center justify-center"
+            style={{ background: "linear-gradient(135deg, var(--color-emerald-glow), var(--color-violet-deep))" }}
+          >
+            <GithubIcon className="size-4 text-primary-foreground" />
           </div>
           <div>
-            <p className="font-bold text-base tracking-tight">GitHealth</p>
+            <p className="font-bold text-base tracking-tight">
+              <span className="text-emerald-glow">git</span>
+              <span className="text-violet-deep">me</span>
+            </p>
             <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Seleção de repositórios</p>
           </div>
           {user && (
@@ -273,9 +279,9 @@ function SelectReposPage() {
         <button
           onClick={handleAnalyze}
           disabled={selected.length === 0}
-          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl bg-foreground text-obsidian-950 font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-[0_0_24px_rgba(16,185,129,0.4)] hover:bg-emerald-glow"
+          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl bg-foreground text-obsidian-950 font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-[0_0_24px_rgba(56,189,248,0.4)] hover:bg-emerald-glow"
         >
-          <Github className="size-5" />
+          <GithubIcon className="size-5" />
           {selected.length > 0
             ? `Analisar ${selected.length} repositório${selected.length > 1 ? "s" : ""}`
             : "Selecione repositórios"}

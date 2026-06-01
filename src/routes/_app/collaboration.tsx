@@ -9,7 +9,7 @@ import { getUser, getSelectedRepo, defaultDateRange } from "@/lib/auth";
 export const Route = createFileRoute("/_app/collaboration")({
   head: () => ({
     meta: [
-      { title: "Colaboração — GitHealth" },
+      { title: "Colaboração — GITME" },
       { name: "description", content: "Você vs equipe e distribuição de revisões de Pull Requests." },
     ],
   }),
@@ -46,7 +46,7 @@ function CollaborationPage() {
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         <GlassCard className="p-6 flex items-center gap-4">
           <div className="size-12 rounded-xl grid place-items-center bg-emerald-glow/10 border border-emerald-glow/20">
             <Users className="size-5 text-emerald-glow" />
@@ -78,18 +78,18 @@ function CollaborationPage() {
         </GlassCard>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <GlassCard className="p-6">
-          <div className="mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        <GlassCard className="p-4 md:p-6">
+          <div className="mb-4 md:mb-6">
             <h3 className="text-base font-semibold text-foreground">Você vs Média da Equipe</h3>
             <p className="text-xs text-muted-foreground">Comparativo nas métricas principais</p>
           </div>
           {teamComparison.length === 0 ? (
-            <div className="h-80 flex items-center justify-center text-sm text-muted-foreground">
+            <div className="h-64 md:h-80 flex items-center justify-center text-sm text-muted-foreground">
               Sem dados de comparação disponíveis.
             </div>
           ) : (
-            <div className="h-80">
+            <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={teamComparison}>
                   <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.05)" vertical={false} />
@@ -108,17 +108,17 @@ function CollaborationPage() {
           )}
         </GlassCard>
 
-        <GlassCard className="p-6">
-          <div className="mb-6">
+        <GlassCard className="p-4 md:p-6">
+          <div className="mb-4 md:mb-6">
             <h3 className="text-base font-semibold text-foreground">Distribuição de Revisões</h3>
             <p className="text-xs text-muted-foreground">PRs revisadas por membro da equipe</p>
           </div>
           {reviewDistribution.length === 0 ? (
-            <div className="h-80 flex items-center justify-center text-sm text-muted-foreground">
+            <div className="h-64 md:h-80 flex items-center justify-center text-sm text-muted-foreground">
               Sem dados de revisão disponíveis.
             </div>
           ) : (
-            <div className="h-80">
+            <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={reviewDistribution} layout="vertical" margin={{ left: 30 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.05)" horizontal={false} />
@@ -148,7 +148,8 @@ function CollaborationPage() {
         {reviewDistribution.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">Sem dados de revisão disponíveis.</div>
         ) : (
-          <table className="w-full text-left">
+          <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[480px]">
             <thead>
               <tr className="bg-obsidian-950/50 text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
                 <th className="px-6 py-3 font-medium">Developer</th>
@@ -196,6 +197,7 @@ function CollaborationPage() {
                 })}
             </tbody>
           </table>
+          </div>
         )}
       </GlassCard>
     </div>
