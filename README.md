@@ -1,4 +1,4 @@
-# GitHealth
+# GITME
 
 **Dashboard de inteligência de engenharia** para monitorar a saúde e produtividade de times de desenvolvimento via métricas do GitHub.
 
@@ -12,7 +12,9 @@
 
 ## Sobre o Projeto
 
-GitHealth é um dashboard analítico que transforma dados brutos do GitHub em indicadores acionáveis de saúde de engenharia. A aplicação oferece uma visão unificada de commits, pull requests, tempo de ciclo, colaboração entre times e padrões de atividade — tudo com uma interface dark "engineering console" com glassmorphism.
+GITME é um dashboard analítico que transforma dados brutos do GitHub em indicadores acionáveis de saúde de engenharia. A aplicação oferece uma visão unificada de commits, pull requests, tempo de ciclo, colaboração entre times e padrões de atividade — tudo com uma interface "engineering console" com glassmorphism e suporte a temas claro e escuro.
+
+Além do fluxo real via OAuth GitHub, a aplicação possui um **modo demonstração** que carrega dados pré-populados dos repositórios `axios/axios` e `vuejs/core` sem necessidade de autenticação, exibindo automaticamente as métricas do contribuidor com mais commits no repositório selecionado.
 
 > Projeto desenvolvido como TCC para explorar métricas de engenharia de software e visualização de dados de desenvolvimento.
 
@@ -24,12 +26,13 @@ GitHealth é um dashboard analítico que transforma dados brutos do GitHub em in
 
 | Rota | Descrição |
 |------|-----------|
-| `/login` | Autenticação via GitHub com UI glassmórfica |
+| `/login` | Autenticação via GitHub OAuth ou entrada em modo demonstração |
+| `/select-repos` | Seleção de repositórios para análise (repos do GitHub ou repos de demo) |
 | `/dashboard` | Visão geral: score de produtividade, PRs, lead time, taxa de aceitação |
 | `/activity` | Velocidade de desenvolvimento: cycle time, lead time, tempo em review |
 | `/repositories` | Análise por repositório: commits, PRs, distribuição de esforço |
 | `/collaboration` | Métricas de time: comparação individual vs. grupo, distribuição de reviews |
-| `/insights` | Diagnósticos: mapa de produtividade (commits por dia da semana × hora), proporção features/bugs, insights automáticos |
+| `/insights` | Diagnósticos: mapa de produtividade (commits por dia da semana × hora), proporção features/bugs |
 
 ### KPIs Monitorados
 
@@ -39,6 +42,16 @@ GitHealth é um dashboard analítico que transforma dados brutos do GitHub em in
 - **Cycle Time** — tempo de abertura até o fechamento do PR
 - **TCM** — linhas de código por commit (Technical Code Metrics)
 - **Time in Review** — distribuição do tempo de revisão por repositório
+
+### Modo Demonstração
+
+Acessível diretamente na tela de login pelo botão **"Ver demonstração"**. Neste modo:
+
+- Nenhuma autenticação GitHub é necessária
+- A tela de seleção exibe apenas `axios/axios` e `vuejs/core`
+- Ao confirmar a seleção, o backend identifica automaticamente o contribuidor com mais commits no(s) repositório(s) escolhido(s) e o define como usuário ativo
+- O ETL **não é executado** — os dados já estão pré-carregados no banco
+- O dashboard carrega imediatamente com dados reais
 
 ---
 
@@ -65,9 +78,9 @@ GitHealth é um dashboard analítico que transforma dados brutos do GitHub em in
 
 ## Design System
 
-A interface usa um tema dark com estética de "console de engenharia":
+A interface adota estética de "console de engenharia" com suporte a tema claro e escuro (toggle no header):
 
-- **Paleta**: escala `obsidian` em espaço de cor OKLCH (950 → 400)
+- **Paleta**: escala `obsidian` em espaço de cor OKLCH (950 → 400) no modo escuro; paleta invertida no modo claro
 - **Accents**: emerald (produtividade), violet (insights), ruby (alertas), amber (avisos)
 - **Efeitos visuais**: glassmorphism com `backdrop-blur`, radial glows, bordas inset translúcidas
 - **Tipografia**: Inter para UI + JetBrains Mono para métricas e dados numéricos
@@ -105,6 +118,16 @@ A aplicação estará disponível em `http://localhost:3000`.
 
 ---
 
+## Variáveis de Ambiente
+
+```properties
+VITE_GITHUB_CLIENT_ID=your_github_oauth_client_id
+VITE_REDIRECT_URI=http://localhost:8080/auth-callback
+VITE_BACKEND_URL=http://localhost:8081
+```
+
+---
+
 ## Scripts Disponíveis
 
 | Comando | Descrição |
@@ -129,16 +152,18 @@ src/
 │   ├── kpi-card.tsx         # Card de métrica com delta/tendência
 │   └── section-header.tsx   # Cabeçalho de seção
 ├── routes/
-│   ├── login.tsx            # Página de autenticação (OAuth GitHub)
-│   ├── _app/
-│   │   ├── dashboard.tsx    # Dashboard principal
-│   │   ├── activity.tsx     # Métricas de atividade
-│   │   ├── repositories.tsx # Análise de repositórios
-│   │   ├── collaboration.tsx# Métricas de colaboração
-│   │   └── insights.tsx     # Insights, heatmap e diagnósticos automáticos
+│   ├── login.tsx            # Login OAuth GitHub + botão de modo demonstração
+│   ├── auth-callback.tsx    # Callback OAuth: troca code por token
+│   ├── select-repos.tsx     # Seleção de repositórios (GitHub real ou demonstração)
+│   └── _app/
+│       ├── dashboard.tsx    # Dashboard principal
+│       ├── activity.tsx     # Métricas de atividade
+│       ├── repositories.tsx # Análise de repositórios
+│       ├── collaboration.tsx# Métricas de colaboração
+│       └── insights.tsx     # Insights, heatmap e diagnósticos automáticos
 ├── lib/
-│   ├── api.ts               # Chamadas ao backend (endpoints de métricas)
-│   ├── auth.ts              # Fluxo OAuth GitHub (login, token, logout)
+│   ├── api.ts               # Chamadas ao backend (métricas, demo, ETL, auth)
+│   ├── auth.ts              # Autenticação: token, usuário, seleção de repos e modo demo
 │   ├── mock-data.ts         # Dados mockados para desenvolvimento offline
 │   ├── error-capture.ts     # Captura e normalização de erros de API
 │   └── utils.ts             # Utilitários gerais
@@ -151,9 +176,28 @@ src/
 
 O frontend consome o backend **GitHubPoc** (Spring Boot) via `src/lib/api.ts`. O fluxo completo:
 
-1. **Autenticação** — OAuth GitHub via `src/lib/auth.ts`: redireciona para o GitHub, recebe o `code`, troca pelo token no backend e armazena em `localStorage`.
-2. **Dados** — todas as métricas são calculadas sobre dados históricos persistidos no banco; o frontend **não consome a GitHub API diretamente em runtime**.
-3. **Desenvolvimento offline** — `src/lib/mock-data.ts` pode ser usado como fallback durante desenvolvimento sem o backend disponível.
+### Fluxo GitHub (autenticação real)
+
+1. **Login** — OAuth GitHub via `src/lib/auth.ts`: redireciona para o GitHub, recebe o `code`, troca pelo token no backend e armazena em `localStorage`.
+2. **Seleção de repositórios** — lista os repos da conta autenticada via `GET /api/poc/github/repositorios`.
+3. **ETL** — o backend ingere commits, PRs, issues e reviews do(s) repo(s) selecionado(s) via `POST /api/poc/etl/seed`. O frontend faz polling em `/api/poc/etl/status` até a conclusão.
+4. **Dashboard** — métricas calculadas sobre dados históricos persistidos no banco.
+
+### Fluxo Demonstração
+
+1. **"Ver demonstração"** — define `simulation_mode=true` no `localStorage`, sem OAuth.
+2. **Seleção de repositórios** — exibe apenas `axios/axios` e `vuejs/core` via `GET /api/poc/demo/repos`.
+3. **Top contributor** — ao confirmar, o frontend consulta `GET /api/poc/demo/top-contributor?repoIds=...` e define o contribuidor com mais commits como usuário ativo.
+4. **Dashboard** — carrega imediatamente, sem ETL, usando dados pré-populados.
+
+### Estado no localStorage
+
+| Chave | Conteúdo |
+|---|---|
+| `gh_token` | Bearer token GitHub (ou `"DEMO"` no modo demonstração) |
+| `gh_user` | Perfil do usuário (`login`, `name`, `avatarUrl`) |
+| `selected_repos` | Array de repositórios selecionados com `id`, `name`, `fullName`, `owner` |
+| `simulation_mode` | `"true"` quando em modo demonstração |
 
 ---
 
