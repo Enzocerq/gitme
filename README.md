@@ -43,6 +43,8 @@ Além do fluxo real via OAuth GitHub, a aplicação possui um **modo demonstraç
 - **TCM** — linhas de código por commit (Technical Code Metrics)
 - **Time in Review** — distribuição do tempo de revisão por repositório
 
+> **Período padrão:** todos os KPIs são calculados sobre os **últimos 12 meses** quando nenhum intervalo de datas é selecionado.
+
 ### Modo Demonstração
 
 Acessível diretamente na tela de login pelo botão **"Ver demonstração"**. Neste modo:
