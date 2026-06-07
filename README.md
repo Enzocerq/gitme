@@ -98,7 +98,7 @@ A interface adota estética de "console de engenharia" com suporte a tema claro 
 
 ```bash
 # 1. Clone o repositório
-git clone https://github.com/seu-usuario/gitme.git
+git clone https://github.com/enzocerq/gitme.git
 cd gitme
 
 # 2. Instale as dependências
@@ -114,7 +114,7 @@ npm run dev
 
 A aplicação estará disponível em `http://localhost:8080`.
 
-> **Pré-requisito:** o backend [GitHubPoc](../GitHubPoc) deve estar rodando em `http://localhost:8081` antes de usar a aplicação.
+> **Pré-requisito:** o backend [gitme-backend](../gitme-backend) deve estar rodando em `http://localhost:8081` antes de usar a aplicação. Em produção o backend está disponível em `https://gitme-backend.onrender.com`.
 
 ---
 
@@ -122,8 +122,14 @@ A aplicação estará disponível em `http://localhost:8080`.
 
 ```properties
 VITE_GITHUB_CLIENT_ID=your_github_oauth_client_id
+
+# Desenvolvimento local
 VITE_REDIRECT_URI=http://localhost:8080/auth-callback
 VITE_BACKEND_URL=http://localhost:8081
+
+# Produção
+# VITE_REDIRECT_URI=https://gitme.enzocerq.workers.dev/auth-callback
+# VITE_BACKEND_URL=https://gitme-backend.onrender.com
 ```
 
 ---
@@ -203,13 +209,23 @@ O frontend consome o backend **GitHubPoc** (Spring Boot) via `src/lib/api.ts`. O
 
 ## Deploy
 
-O projeto usa **Cloudflare Workers** para hospedagem serverless via o plugin oficial do Vite:
+O projeto usa **Cloudflare Workers** para hospedagem serverless via o plugin oficial do Vite.
+
+**URL de produção:** `https://gitme.enzocerq.workers.dev`
 
 ```bash
+# 1. Autentique no Cloudflare (primeira vez)
+npx wrangler login
+
+# 2. Build de produção (lê as variáveis do .env)
 npm run build
-# Deploy com Wrangler CLI
+
+# 3. Deploy para Cloudflare Workers
 npx wrangler deploy
 ```
+
+> Antes do deploy, configure `VITE_REDIRECT_URI` e `VITE_BACKEND_URL` no `.env` com os valores de produção.
+> Após o deploy, atualize o **Authorization callback URL** no GitHub OAuth App para `https://gitme.enzocerq.workers.dev/auth-callback`.
 
 ---
 
