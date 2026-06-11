@@ -13,8 +13,11 @@ import {
   Moon,
   Menu,
   X,
+  ChevronDown,
+  Check,
 } from "lucide-react";
-import { getUser, getSelectedRepo, logout } from "@/lib/auth";
+import { getUser, logout } from "@/lib/auth";
+import { useActiveRepo } from "@/hooks/use-active-repo";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
 import { PeriodPicker } from "@/components/period-picker";
@@ -41,9 +44,10 @@ export function AppShell() {
   const { isDark, toggle } = useTheme();
   const meta = titles[pathname] ?? { title: "GITME", subtitle: "Inteligência de engenharia em tempo real" };
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [repoSwitcherOpen, setRepoSwitcherOpen] = useState(false);
 
   const user = getUser();
-  const repo = getSelectedRepo();
+  const { activeRepo, allRepos, setActiveRepo } = useActiveRepo();
 
   function handleLogout() {
     logout();
@@ -101,20 +105,78 @@ export function AppShell() {
           </button>
         </div>
 
-        {/* Repo badge */}
-        {repo && (
-          <button
-            onClick={handleChangeRepo}
-            className="mx-3 mt-3 px-3 py-2 rounded-lg bg-obsidian-900/60 border border-border text-left hover:border-emerald-glow/30 transition-colors group"
-          >
-            <div className="flex items-center gap-2">
-              <GitFork className="size-3.5 text-emerald-glow shrink-0" />
-              <p className="text-xs font-medium text-foreground truncate">{repo.fullName}</p>
-            </div>
-            <p className="text-[10px] text-muted-foreground font-mono mt-0.5 group-hover:text-emerald-glow/70 transition-colors">
-              Trocar repositório
-            </p>
-          </button>
+        {/* Repo switcher */}
+        {activeRepo && (
+          <div className="mx-3 mt-3 relative">
+            {allRepos.length > 1 ? (
+              <>
+                <button
+                  onClick={() => setRepoSwitcherOpen((v) => !v)}
+                  className="w-full px-3 py-2 rounded-lg bg-obsidian-900/60 border border-border text-left hover:border-emerald-glow/30 transition-colors group"
+                >
+                  <div className="flex items-center gap-2">
+                    <GitFork className="size-3.5 text-emerald-glow shrink-0" />
+                    <p className="text-xs font-medium text-foreground truncate flex-1">{activeRepo.fullName}</p>
+                    <ChevronDown
+                      className={cn(
+                        "size-3 text-muted-foreground transition-transform shrink-0",
+                        repoSwitcherOpen && "rotate-180"
+                      )}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                    {allRepos.length} repos · clique para alternar
+                  </p>
+                </button>
+
+                {repoSwitcherOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-border bg-obsidian-950/98 backdrop-blur-xl shadow-2xl overflow-hidden">
+                    {allRepos.map((r) => {
+                      const isActive = r.id === activeRepo.id;
+                      return (
+                        <button
+                          key={r.id}
+                          onClick={() => {
+                            setActiveRepo(r);
+                            setRepoSwitcherOpen(false);
+                          }}
+                          className={cn(
+                            "w-full px-3 py-2.5 flex items-center gap-2 text-left transition-colors text-xs",
+                            isActive
+                              ? "bg-emerald-glow/10 text-emerald-glow"
+                              : "text-foreground hover:bg-obsidian-800/50"
+                          )}
+                        >
+                          <GitFork className="size-3 shrink-0" />
+                          <span className="truncate flex-1">{r.fullName}</span>
+                          {isActive && <Check className="size-3 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={handleChangeRepo}
+                      className="w-full px-3 py-2 text-left text-[10px] font-mono text-muted-foreground hover:text-foreground border-t border-border transition-colors uppercase tracking-widest"
+                    >
+                      + Gerenciar repositórios
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={handleChangeRepo}
+                className="w-full px-3 py-2 rounded-lg bg-obsidian-900/60 border border-border text-left hover:border-emerald-glow/30 transition-colors group"
+              >
+                <div className="flex items-center gap-2">
+                  <GitFork className="size-3.5 text-emerald-glow shrink-0" />
+                  <p className="text-xs font-medium text-foreground truncate">{activeRepo.fullName}</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground font-mono mt-0.5 group-hover:text-emerald-glow/70 transition-colors">
+                  Trocar repositório
+                </p>
+              </button>
+            )}
+          </div>
         )}
 
         <nav className="p-3 space-y-1 flex-1 mt-1">

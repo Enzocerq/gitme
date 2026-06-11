@@ -5,7 +5,8 @@ import { Users } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { QueryError } from "@/components/query-state";
 import { getCollaborationMetrics } from "@/lib/api";
-import { getUser, getSelectedRepo } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
+import { useActiveRepo } from "@/hooks/use-active-repo";
 import { usePeriod } from "@/hooks/use-period";
 
 export const Route = createFileRoute("/_app/collaboration")({
@@ -20,7 +21,7 @@ export const Route = createFileRoute("/_app/collaboration")({
 
 function CollaborationPage() {
   const user = getUser();
-  const repo = getSelectedRepo();
+  const { activeRepo: repo } = useActiveRepo();
   const { from, to } = usePeriod().period;
 
   const { data: collab, isLoading, isError, refetch } = useQuery({

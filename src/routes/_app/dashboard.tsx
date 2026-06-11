@@ -25,8 +25,9 @@ import {
 } from "@/components/ui/dialog";
 import { getOverviewMetrics, getFlowMetrics, getCollaborationMetrics, getProductivityScore } from "@/lib/api";
 import type { ProductivityScoreResponse } from "@/lib/api";
-import { getUser, getSelectedRepo } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
 import { usePeriod } from "@/hooks/use-period";
+import { useActiveRepo } from "@/hooks/use-active-repo";
 import { previousRange, computeDeltaPct, computeDeltaPp, PRESET_LABEL, PRESET_COMPARE } from "@/lib/period";
 
 export const Route = createFileRoute("/_app/dashboard")({
@@ -302,7 +303,7 @@ function ProductivityScorePanel({ data, loading, periodLabel }: { data?: Product
 
 function DashboardPage() {
   const user = getUser();
-  const repo = getSelectedRepo();
+  const { activeRepo: repo } = useActiveRepo();
   const { period } = usePeriod();
   const { from, to } = period;
   const prev = previousRange(period);

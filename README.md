@@ -171,7 +171,7 @@ VITE_BACKEND_URL=http://localhost:8081
 src/
 ├── components/
 │   ├── ui/                  # Componentes shadcn/ui
-│   ├── app-shell.tsx        # Layout principal com sidebar + seletor de período no header
+│   ├── app-shell.tsx        # Layout principal com sidebar (switcher de repo), seletor de período no header
 │   ├── glass-card.tsx       # Card glassmórfico reutilizável
 │   ├── kpi-card.tsx         # Card de métrica com delta vs. período anterior + tooltip de contexto opcional (prop `info`)
 │   ├── period-picker.tsx    # Seletor de período global (presets + intervalo personalizado)
@@ -189,6 +189,7 @@ src/
 │       ├── collaboration.tsx# Métricas de colaboração
 │       └── insights.tsx     # Diagnósticos de conteúdo, heatmap e painel Ritmo de Trabalho
 ├── hooks/
+│   ├── use-active-repo.tsx  # Context global do repositório ativo (switcher entre repos selecionados)
 │   ├── use-period.tsx       # Context global do período de análise (persiste em localStorage)
 │   ├── use-theme.tsx        # Toggle de tema claro/escuro
 │   └── use-mobile.tsx       # Detecção de viewport mobile
@@ -230,6 +231,7 @@ O frontend consome o backend **GitHubPoc** (Spring Boot) via `src/lib/api.ts`. O
 | `gh_token` | Bearer token GitHub (ou `"DEMO"` no modo demonstração) |
 | `gh_user` | Perfil do usuário (`login`, `name`, `avatarUrl`) |
 | `selected_repos` | Array de repositórios selecionados com `id`, `name`, `fullName`, `owner` |
+| `gitme_active_repo_id` | ID numérico do repositório ativo no switcher (fallback: primeiro selecionado) |
 | `simulation_mode` | `"true"` quando em modo demonstração |
 
 ---

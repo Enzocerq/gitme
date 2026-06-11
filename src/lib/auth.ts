@@ -63,6 +63,31 @@ export function setSelectedRepo(repo: SelectedRepo): void {
   setSelectedRepos([repo]);
 }
 
+const ACTIVE_REPO_KEY = "gitme_active_repo_id";
+
+export function getActiveRepoId(): number | null {
+  if (!isClient()) return null;
+  const raw = localStorage.getItem(ACTIVE_REPO_KEY);
+  return raw ? parseInt(raw, 10) : null;
+}
+
+export function setActiveRepoId(id: number): void {
+  if (!isClient()) return;
+  localStorage.setItem(ACTIVE_REPO_KEY, String(id));
+}
+
+/** Repo atualmente ativo para visualização. Cai no primeiro selecionado como fallback. */
+export function getActiveRepo(): SelectedRepo | null {
+  const repos = getSelectedRepos();
+  if (repos.length === 0) return null;
+  const activeId = getActiveRepoId();
+  if (activeId !== null) {
+    const found = repos.find((r) => r.id === activeId);
+    if (found) return found;
+  }
+  return repos[0];
+}
+
 const SIMULATION_KEY = "simulation_mode";
 
 export function setSimulationMode(active: boolean): void {
@@ -85,6 +110,7 @@ export function logout(): void {
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(REPOS_KEY);
   localStorage.removeItem(SIMULATION_KEY);
+  localStorage.removeItem(ACTIVE_REPO_KEY);
 }
 
 export function isAuthenticated(): boolean {

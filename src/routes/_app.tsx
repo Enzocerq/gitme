@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { AppShell } from "@/components/app-shell";
 import { PeriodProvider } from "@/hooks/use-period";
+import { ActiveRepoProvider } from "@/hooks/use-active-repo";
 import { isAuthenticated, getSelectedRepo } from "@/lib/auth";
 
 function AuthGuard() {
@@ -18,9 +19,11 @@ function AuthGuard() {
   if (!isAuthenticated() || !getSelectedRepo()) return null;
 
   return (
-    <PeriodProvider>
-      <AppShell />
-    </PeriodProvider>
+    <ActiveRepoProvider>
+      <PeriodProvider>
+        <AppShell />
+      </PeriodProvider>
+    </ActiveRepoProvider>
   );
 }
 

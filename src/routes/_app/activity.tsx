@@ -6,8 +6,9 @@ import { GlassCard } from "@/components/glass-card";
 import { KpiCard } from "@/components/kpi-card";
 import { QueryError } from "@/components/query-state";
 import { getFlowMetrics, getInsightsMetrics } from "@/lib/api";
-import { getUser, getSelectedRepo } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
 import { usePeriod } from "@/hooks/use-period";
+import { useActiveRepo } from "@/hooks/use-active-repo";
 import { previousRange, computeDeltaPct, PRESET_COMPARE } from "@/lib/period";
 
 export const Route = createFileRoute("/_app/activity")({
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/_app/activity")({
 
 function ActivityPage() {
   const user = getUser();
-  const repo = getSelectedRepo();
+  const { activeRepo: repo } = useActiveRepo();
   const { period } = usePeriod();
   const { from, to } = period;
   const prev = previousRange(period);

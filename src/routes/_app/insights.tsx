@@ -4,7 +4,8 @@ import { Sparkles, AlertTriangle, TrendingUp, Clock, ShieldCheck } from "lucide-
 import { GlassCard } from "@/components/glass-card";
 import { QueryError } from "@/components/query-state";
 import { getInsightsMetrics } from "@/lib/api";
-import { getUser, getSelectedRepo } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
+import { useActiveRepo } from "@/hooks/use-active-repo";
 import { usePeriod } from "@/hooks/use-period";
 
 export const Route = createFileRoute("/_app/insights")({
@@ -221,7 +222,7 @@ function InsightCard({
 
 function InsightsPage() {
   const user = getUser();
-  const repo = getSelectedRepo();
+  const { activeRepo: repo } = useActiveRepo();
   const { from, to } = usePeriod().period;
 
   const { data: insights, isLoading, isError, refetch } = useQuery({
