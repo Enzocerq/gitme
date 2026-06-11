@@ -14,6 +14,7 @@ import {
 import { GitCommit, GitPullRequest, Gauge, CheckCircle2, ArrowUpRight, Loader2, Zap, Info } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { KpiCard } from "@/components/kpi-card";
+import { QueryError } from "@/components/query-state";
 import {
   Dialog,
   DialogContent,
@@ -309,7 +310,7 @@ function DashboardPage() {
   const params = { repoId: repo?.id ?? 0, authorLogin: user?.login ?? "", from, to };
   const prevParams = { repoId: repo?.id ?? 0, authorLogin: user?.login ?? "", from: prev.from, to: prev.to };
 
-  const { data: overview, isLoading: loadingOverview } = useQuery({
+  const { data: overview, isLoading: loadingOverview, isError: errorOverview, refetch: refetchOverview } = useQuery({
     queryKey: ["overview", params],
     queryFn: () => getOverviewMetrics(params),
     enabled: !!repo && !!user,
@@ -323,7 +324,7 @@ function DashboardPage() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const { data: flow } = useQuery({
+  const { data: flow, isLoading: loadingFlow, isError: errorFlow, refetch: refetchFlow } = useQuery({
     queryKey: ["flow", params],
     queryFn: () => getFlowMetrics(params),
     enabled: !!repo && !!user,
@@ -344,35 +345,33 @@ function DashboardPage() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const { data: scoreData, isLoading: loadingScore } = useQuery({
+  const { data: scoreData, isLoading: loadingScore, isError: errorScore, refetch: refetchScore } = useQuery({
     queryKey: ["productivityScore", user?.login, from, to],
     queryFn: () => getProductivityScore(user!.login, from, to),
     enabled: !!user,
     staleTime: 1000 * 60 * 5,
   });
 
-  if (loadingOverview || !overview) return <LoadingSkeleton />;
-
-  const raw = overview.individual;
+  const raw = overview?.individual;
   const ind = {
-    acceptanceRate: (raw.acceptanceRate ?? 0) * 100,
-    prsMerged: raw.prsMerged ?? 0,
-    prsOpened: raw.prsOpened ?? 0,
-    commits: raw.commits ?? 0,
+    acceptanceRate: ((raw?.acceptanceRate ?? 0) * 100),
+    prsMerged: raw?.prsMerged ?? 0,
+    prsOpened: raw?.prsOpened ?? 0,
+    commits: raw?.commits ?? 0,
   };
   const leadTimeDays = flow ? ((flow.individual.leadTimeHours ?? 0) / 24) : 0;
 
   // Deltas reais contra o período imediatamente anterior (mesma duração).
   const pRaw = prevOverview?.individual;
-  const dCommits = pRaw ? computeDeltaPct(raw.commits ?? 0, pRaw.commits ?? 0) : null;
-  const dPrsMerged = pRaw ? computeDeltaPct(raw.prsMerged ?? 0, pRaw.prsMerged ?? 0) : null;
-  const dAcceptancePp = pRaw ? computeDeltaPp(raw.acceptanceRate ?? 0, pRaw.acceptanceRate ?? 0) : null;
+  const dCommits = (raw && pRaw) ? computeDeltaPct(raw.commits ?? 0, pRaw.commits ?? 0) : null;
+  const dPrsMerged = (raw && pRaw) ? computeDeltaPct(raw.prsMerged ?? 0, pRaw.prsMerged ?? 0) : null;
+  const dAcceptancePp = (raw && pRaw) ? computeDeltaPp(raw.acceptanceRate ?? 0, pRaw.acceptanceRate ?? 0) : null;
   const dLeadTime =
     prevFlow && flow ? computeDeltaPct(flow.individual.leadTimeHours ?? 0, prevFlow.individual.leadTimeHours ?? 0) : null;
 
   const compareLabel = PRESET_COMPARE[period.preset];
 
-  const activitySeries = (overview.activityOverTime ?? [])
+  const activitySeries = (overview?.activityOverTime ?? [])
     .map((p) => ({
       day: new Date(p.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
       date: p.date,
@@ -403,15 +402,28 @@ function DashboardPage() {
   return (
     <div className="space-y-6 md:space-y-8">
       {/* Productivity Score */}
-      <ProductivityScorePanel data={scoreData} loading={loadingScore} periodLabel={PRESET_LABEL[period.preset]} />
+      {errorScore ? (
+        <QueryError onRetry={refetchScore} className="h-40" />
+      ) : (
+        <ProductivityScorePanel data={scoreData} loading={loadingScore} periodLabel={PRESET_LABEL[period.preset]} />
+      )}
 
       {/* KPIs */}
+      {loadingOverview ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 rounded-2xl bg-obsidian-900/40 border border-border animate-pulse" />
+          ))}
+        </div>
+      ) : errorOverview ? (
+        <QueryError onRetry={refetchOverview} className="h-32" />
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <KpiCard
           label="Commits"
           value={`${ind.commits}`}
           delta={dCommits !== null ? { value: dCommits, neutral: true, compareLabel } : undefined}
-          hint={`Equipe: ${overview.team.commits}`}
+          hint={`Equipe: ${overview?.team.commits ?? 0}`}
         />
 
         <KpiCard
@@ -441,8 +453,17 @@ function DashboardPage() {
           hint="Da issue ao merge"
         />
       </div>
+      )}
 
-      {/* Charts */}
+      {/* Charts — carregam independente dos KPIs; mostram estado vazio se dados ainda não chegaram */}
+      {(errorOverview && errorFlow) ? (
+        <QueryError onRetry={() => { void refetchOverview(); void refetchFlow(); }} className="h-72" />
+      ) : loadingOverview && loadingFlow ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+          <div className="lg:col-span-2 h-80 rounded-2xl bg-obsidian-900/40 border border-border animate-pulse" />
+          <div className="h-80 rounded-2xl bg-obsidian-900/40 border border-border animate-pulse" />
+        </div>
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         <GlassCard className="lg:col-span-2 p-4 md:p-6">
           <div className="flex flex-wrap items-start justify-between gap-2 mb-4 md:mb-6">
@@ -508,6 +529,7 @@ function DashboardPage() {
           </div>
         </GlassCard>
       </div>
+      )}
 
       {/* Recent + Contributors */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
@@ -516,7 +538,9 @@ function DashboardPage() {
             <h3 className="text-base font-semibold text-foreground">Atividade Recente</h3>
             <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Ao vivo</span>
           </div>
-          {recentActivity.length === 0 ? (
+          {errorFlow ? (
+            <div className="p-6"><QueryError onRetry={refetchFlow} className="h-28" /></div>
+          ) : recentActivity.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">Sem atividade no período.</div>
           ) : (
             <ul className="divide-y divide-border">

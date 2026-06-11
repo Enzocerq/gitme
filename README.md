@@ -175,6 +175,7 @@ src/
 │   ├── glass-card.tsx       # Card glassmórfico reutilizável
 │   ├── kpi-card.tsx         # Card de métrica com delta vs. período anterior + tooltip de contexto opcional (prop `info`)
 │   ├── period-picker.tsx    # Seletor de período global (presets + intervalo personalizado)
+│   ├── query-state.tsx      # `QueryError`: estado de erro com retry reutilizável entre telas
 │   └── section-header.tsx   # Cabeçalho de seção
 ├── routes/
 │   ├── login.tsx            # Login OAuth GitHub + botão de modo demonstração

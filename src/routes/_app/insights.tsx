@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Sparkles, AlertTriangle, TrendingUp, Clock, ShieldCheck } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
+import { QueryError } from "@/components/query-state";
 import { getInsightsMetrics } from "@/lib/api";
 import { getUser, getSelectedRepo } from "@/lib/auth";
 import { usePeriod } from "@/hooks/use-period";
@@ -223,7 +224,7 @@ function InsightsPage() {
   const repo = getSelectedRepo();
   const { from, to } = usePeriod().period;
 
-  const { data: insights, isLoading } = useQuery({
+  const { data: insights, isLoading, isError, refetch } = useQuery({
     queryKey: ["insights", { repoId: repo?.id, authorLogin: user?.login, from, to }],
     queryFn: () => getInsightsMetrics({ repoId: repo!.id, authorLogin: user!.login, from, to }),
     enabled: !!repo && !!user,
@@ -364,6 +365,8 @@ function InsightsPage() {
               <div key={i} className="h-28 rounded-xl bg-obsidian-900/40 border border-border" />
             ))}
           </div>
+        ) : isError ? (
+          <QueryError onRetry={refetch} className="h-28" />
         ) : autoInsights.length === 0 ? (
           <div className="text-sm text-muted-foreground">Sem insights disponíveis no período.</div>
         ) : (

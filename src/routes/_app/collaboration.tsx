@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Users } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
+import { QueryError } from "@/components/query-state";
 import { getCollaborationMetrics } from "@/lib/api";
 import { getUser, getSelectedRepo } from "@/lib/auth";
 import { usePeriod } from "@/hooks/use-period";
@@ -22,7 +23,7 @@ function CollaborationPage() {
   const repo = getSelectedRepo();
   const { from, to } = usePeriod().period;
 
-  const { data: collab, isLoading } = useQuery({
+  const { data: collab, isLoading, isError, refetch } = useQuery({
     queryKey: ["collaboration", { repoId: repo?.id, authorLogin: user?.login, from, to }],
     queryFn: () => getCollaborationMetrics({ repoId: repo!.id, authorLogin: user!.login, from, to }),
     enabled: !!repo && !!user,
@@ -44,6 +45,10 @@ function CollaborationPage() {
     : [];
 
   const myReviews = reviewDistribution.find((r) => r.reviewer === user?.login)?.reviewed ?? 0;
+
+  if (isError) {
+    return <QueryError onRetry={refetch} className="h-64 mt-4" />;
+  }
 
   return (
     <div className="space-y-8">

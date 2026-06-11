@@ -4,6 +4,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
 import { GitCommit, GitPullRequest, CheckCircle2 } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { KpiCard } from "@/components/kpi-card";
+import { QueryError } from "@/components/query-state";
 import { getFlowMetrics, getInsightsMetrics } from "@/lib/api";
 import { getUser, getSelectedRepo } from "@/lib/auth";
 import { usePeriod } from "@/hooks/use-period";
@@ -26,7 +27,7 @@ function ActivityPage() {
   const { from, to } = period;
   const prev = previousRange(period);
 
-  const { data: flow, isLoading } = useQuery({
+  const { data: flow, isLoading, isError: errorFlow, refetch: refetchFlow } = useQuery({
     queryKey: ["flow", { repoId: repo?.id, authorLogin: user?.login, from, to }],
     queryFn: () => getFlowMetrics({ repoId: repo!.id, authorLogin: user!.login, from, to }),
     enabled: !!repo && !!user,
@@ -40,7 +41,7 @@ function ActivityPage() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const { data: insights, isLoading: isLoadingInsights } = useQuery({
+  const { data: insights, isLoading: isLoadingInsights, isError: errorInsights, refetch: refetchInsights } = useQuery({
     queryKey: ["insights", { repoId: repo?.id, authorLogin: user?.login, from, to }],
     queryFn: () => getInsightsMetrics({ repoId: repo!.id, authorLogin: user!.login, from, to }),
     enabled: !!repo && !!user,
@@ -87,6 +88,9 @@ function ActivityPage() {
 
   return (
     <div className="space-y-6 md:space-y-8">
+      {errorFlow ? (
+        <QueryError onRetry={refetchFlow} className="h-32" />
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <KpiCard
           label="Dias Ativos"
@@ -113,7 +117,9 @@ function ActivityPage() {
           info="Tamanho de Commit Médio (linhas alteradas por commit). É uma estatística descritiva do seu estilo de versionamento — não uma medida de produtividade. Volume de linhas de código foi desacreditado como proxy de valor entregue desde os anos 1970. Sem 'meta': nem mais nem menos é intrinsecamente melhor."
         />
       </div>
+      )}
 
+      {errorFlow ? null : (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <GlassCard className="p-4 md:p-6">
           <div className="mb-4 md:mb-6">
@@ -206,7 +212,11 @@ function ActivityPage() {
           </div>
         </GlassCard>
       </div>
+      )}
 
+      {errorInsights ? (
+        <QueryError onRetry={refetchInsights} className="h-56" />
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <GlassCard className="p-6">
           <h3 className="text-base font-semibold text-foreground mb-1">Seus Commits por Tipo</h3>
@@ -292,7 +302,9 @@ function ActivityPage() {
           )}
         </GlassCard>
       </div>
+      )}
 
+      {errorFlow ? null : (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Commits */}
         <GlassCard className="overflow-hidden">
@@ -396,6 +408,7 @@ function ActivityPage() {
           )}
         </GlassCard>
       </div>
+      )}
     </div>
   );
 }
