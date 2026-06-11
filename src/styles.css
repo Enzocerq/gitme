@@ -214,4 +214,22 @@ html.dark {
   .text-glow-emerald {
     text-shadow: 0 0 12px color-mix(in oklab, var(--emerald-glow) 60%, transparent);
   }
+  /* Barra de progresso indeterminada (ingestão ETL sem total estimado conhecido) */
+  .progress-indeterminate {
+    position: relative;
+    overflow: hidden;
+  }
+  .progress-indeterminate::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, transparent, var(--emerald-glow), transparent);
+    animation: progress-indeterminate-slide 1.4s ease-in-out infinite;
+  }
+  @keyframes progress-indeterminate-slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
+  }
 }

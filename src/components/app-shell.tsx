@@ -40,6 +40,7 @@ const titles: Record<string, { title: string; subtitle: string }> = {
 
 export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isNavigating = useRouterState({ select: (s) => s.isLoading });
   const navigate = useNavigate();
   const { isDark, toggle } = useTheme();
   const meta = titles[pathname] ?? { title: "GITME", subtitle: "Inteligência de engenharia em tempo real" };
@@ -61,6 +62,15 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen text-foreground selection:bg-emerald-glow/30">
+      {/* Indicador de loading global durante transições de rota */}
+      {isNavigating && (
+        <div
+          className="fixed top-0 left-0 right-0 z-[60] h-0.5 progress-indeterminate"
+          role="status"
+          aria-label="Carregando página"
+        />
+      )}
+
       {/* Background glows */}
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute top-0 left-[calc(50%-300px)] size-[600px] rounded-full bg-emerald-glow/15 blur-[160px]" />
@@ -250,6 +260,15 @@ export function AppShell() {
               <h1 className="text-base md:text-xl font-semibold text-foreground truncate">{meta.title}</h1>
               <p className="text-xs text-muted-foreground hidden sm:block truncate">{meta.subtitle}</p>
             </div>
+            {activeRepo && (
+              <div
+                className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border bg-obsidian-900/60 backdrop-blur-xl text-xs font-mono text-muted-foreground shrink-0"
+                title={`Repositório ativo: ${activeRepo.fullName}`}
+              >
+                <GitFork className="size-3 text-emerald-glow shrink-0" />
+                <span className="truncate max-w-[200px]">{activeRepo.fullName}</span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2 md:gap-3 shrink-0">
             <PeriodPicker />

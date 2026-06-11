@@ -38,7 +38,7 @@ export function KpiCard({ label, value, delta, hint, info, children }: KpiCardPr
   return (
     <GlassCard className="p-6">
       <div className="flex items-center gap-1.5 mb-2">
-        <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.18em]">
+        <p className="text-xs font-mono text-muted-foreground uppercase tracking-[0.18em]">
           {label}
         </p>
         {info && (
@@ -75,8 +75,9 @@ export function KpiCard({ label, value, delta, hint, info, children }: KpiCardPr
               bad   && "text-ruby-glow bg-ruby-glow/10 ring-1 ring-ruby-glow/30",
               !good && !bad && "text-foreground/50 bg-foreground/5 ring-1 ring-foreground/10"
             )}
+            aria-label={`variação: ${sign}${Math.abs(delta.value)}${suffix}${good ? " — melhora" : bad ? " — piora" : ""}`}
           >
-            {DirIcon && <DirIcon className="size-3 shrink-0" />}
+            {DirIcon && <DirIcon className="size-3 shrink-0" aria-hidden="true" />}
             {sign}{Math.abs(delta.value)}{suffix}
           </span>
 

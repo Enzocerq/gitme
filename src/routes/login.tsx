@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { GithubIcon, Sparkles, FlaskConical } from "lucide-react";
+import { useState } from "react";
+import { GithubIcon, Sparkles, FlaskConical, AlertTriangle, Loader2 } from "lucide-react";
 import { setToken, setUser, setSimulationMode } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
@@ -12,18 +13,33 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
+/** Gera um state OAuth criptograficamente forte para proteção contra CSRF. */
+function generateOAuthState(): string {
+  const c = globalThis.crypto;
+  if (typeof c?.randomUUID === "function") {
+    return c.randomUUID().replace(/-/g, "");
+  }
+  const bytes = new Uint8Array(16);
+  c.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function LoginPage() {
   const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
 
   function handleGithubLogin() {
     const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID as string;
     if (!clientId) {
-      alert("VITE_GITHUB_CLIENT_ID não configurado no .env");
+      setError("Configuração ausente: defina VITE_GITHUB_CLIENT_ID no arquivo .env para habilitar o login via GitHub.");
       return;
     }
+    setError(null);
+    setRedirecting(true);
     const redirectUri = import.meta.env.VITE_REDIRECT_URI as string;
     const scope = "repo user";
-    const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    const state = generateOAuthState();
     sessionStorage.setItem("oauth_state", state);
     window.location.href =
       `https://github.com/login/oauth/authorize` +
@@ -73,11 +89,31 @@ function LoginPage() {
 
         <button
           onClick={handleGithubLogin}
-          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl bg-foreground text-obsidian-950 font-semibold text-sm transition-all hover:shadow-[0_0_24px_rgba(56,189,248,0.4)] hover:bg-emerald-glow"
+          disabled={redirecting}
+          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl bg-foreground text-obsidian-950 font-semibold text-sm transition-all hover:shadow-[0_0_24px_rgba(56,189,248,0.4)] hover:bg-emerald-glow disabled:opacity-60 disabled:cursor-wait"
         >
-          <GithubIcon className="size-5" />
-          Continuar com GitHub
+          {redirecting ? (
+            <>
+              <Loader2 className="size-5 animate-spin" />
+              Redirecionando para o GitHub…
+            </>
+          ) : (
+            <>
+              <GithubIcon className="size-5" />
+              Continuar com GitHub
+            </>
+          )}
         </button>
+
+        {error && (
+          <div
+            role="alert"
+            className="mt-4 flex items-start gap-2.5 rounded-xl border border-ruby-glow/30 bg-ruby-glow/5 p-3 text-xs text-foreground/90 leading-relaxed"
+          >
+            <AlertTriangle className="size-4 text-ruby-glow shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
 
         <div className="relative my-5">
           <div className="absolute inset-0 flex items-center">
@@ -97,7 +133,7 @@ function LoginPage() {
         </button>
 
         <p className="text-center text-[11px] text-muted-foreground mt-2">
-          Explore métricas com dados reais de Axios e Vue.js
+          Explore o painel com dados de projetos open-source reais — sem precisar conectar sua conta
         </p>
 
         <div className="mt-8 pt-6 border-t border-border flex items-start gap-3 text-xs text-muted-foreground">

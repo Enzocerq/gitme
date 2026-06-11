@@ -38,7 +38,7 @@ Após mudanças não-triviais, rode `npx tsc --noEmit` e, idealmente, `npm run b
 ## Convenções
 
 - **UI em pt-BR.** Strings voltadas ao usuário em português.
-- **`KpiCard`** (`components/kpi-card.tsx`): `delta.neutral: true` para métricas de volume (commits, PRs) — mostra direção sem colorir bom/ruim; `delta.invert: true` quando "menor é melhor" (lead/cycle time); `suffix: "pp"` para deltas de taxas. Decisão deliberada de SEI (evitar Goodhart's Law / alinhar a SPACE e DORA) — **não** adicione delta colorido ao TCM.
+- **`KpiCard`** (`components/kpi-card.tsx`): `delta.neutral: true` para métricas de volume (commits, PRs) — mostra direção sem colorir bom/ruim; `delta.invert: true` quando "menor é melhor" (Tempo de Resolução/Tempo de Ciclo); `suffix: "pontos percentuais"` para deltas de taxas. Decisão deliberada de SEI (evitar Goodhart's Law / alinhar a SPACE e DORA) — **não** adicione delta colorido ao TCM.
 - **Design tokens** em `src/styles.css` (escala `obsidian` OKLCH, accents emerald/violet/ruby/amber). Use classes utilitárias existentes (`GlassCard`, glows) em vez de cores hardcoded.
 - **Data fetching** via TanStack Query com `staleTime` de 5 min e `queryKey` incluindo `from`/`to`.
 

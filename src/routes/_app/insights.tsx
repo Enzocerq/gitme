@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Sparkles, AlertTriangle, TrendingUp, Clock, ShieldCheck } from "lucide-react";
+import { Sparkles, AlertTriangle, TrendingUp, TrendingDown, Minus, Clock, ShieldCheck, FunctionSquare } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { QueryError } from "@/components/query-state";
 import { getInsightsMetrics } from "@/lib/api";
 import { getUser } from "@/lib/auth";
 import { useActiveRepo } from "@/hooks/use-active-repo";
 import { usePeriod } from "@/hooks/use-period";
+import { previousRange, computeDeltaPp, PRESET_COMPARE } from "@/lib/period";
 
 export const Route = createFileRoute("/_app/insights")({
   head: () => ({
@@ -47,6 +48,14 @@ function ProductivityHeatmap({ heatmap }: { heatmap: number[][] }) {
   const max = Math.max(...heatmap.flat(), 1);
   const peakText = buildPeakInsight(heatmap);
 
+  // Totais por linha (dia) e por coluna (hora) — revelam onde o trabalho se concentra.
+  const rowTotals = heatmap.map((row) => row.reduce((s, v) => s + v, 0));
+  const maxRowTotal = Math.max(...rowTotals, 1);
+  const hourTotals = Array.from({ length: 24 }, (_, h) => heatmap.reduce((s, row) => s + (row[h] ?? 0), 0));
+  const busiestDay = rowTotals.indexOf(Math.max(...rowTotals));
+  const busiestHour = hourTotals.indexOf(Math.max(...hourTotals));
+  const grandTotal = rowTotals.reduce((s, v) => s + v, 0);
+
   return (
     <GlassCard className="p-6">
       <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
@@ -64,18 +73,23 @@ function ProductivityHeatmap({ heatmap }: { heatmap: number[][] }) {
       </div>
 
       <div className="mt-5 overflow-x-auto">
-        <div style={{ minWidth: 540 }}>
+        <div
+          style={{ minWidth: 580 }}
+          role="img"
+          aria-label={`Mapa de produtividade: commits por dia da semana e hora do dia. ${peakText} Dia mais ativo: ${DAYS[busiestDay]}. Hora mais ativa: ${busiestHour}h.`}
+        >
           {/* Hour labels */}
-          <div className="flex ml-10 mb-1">
+          <div className="flex ml-10 mb-1" aria-hidden="true">
             {Array.from({ length: 24 }).map((_, h) => (
               <div key={h} className="flex-1 text-center text-[10px] text-muted-foreground">
                 {h % 3 === 0 ? h : ""}
               </div>
             ))}
+            <span className="w-9 text-center text-[10px] font-mono text-muted-foreground/70 shrink-0">Σ</span>
           </div>
           {/* Grid rows */}
           {heatmap.map((row, d) => (
-            <div key={d} className="flex items-center gap-0 mb-1">
+            <div key={d} className="flex items-center gap-0 mb-1" aria-hidden="true">
               <span className="w-10 text-[10px] text-muted-foreground shrink-0">{DAYS[d]}</span>
               {row.map((val, h) => (
                 <div
@@ -84,14 +98,44 @@ function ProductivityHeatmap({ heatmap }: { heatmap: number[][] }) {
                   title={`${DAYS[d]} ${h}h: ${val} commits`}
                 />
               ))}
+              {/* Total do dia */}
+              <span
+                className={`w-9 text-right text-[10px] font-mono tabular-nums shrink-0 pl-1 ${
+                  d === busiestDay && rowTotals[d] > 0 ? "text-emerald-glow font-bold" : "text-muted-foreground/70"
+                }`}
+              >
+                {rowTotals[d]}
+              </span>
             </div>
           ))}
+          {/* Totais por faixa de hora (a cada 3h, alinhados às labels) */}
+          <div className="flex ml-10 mt-1 border-t border-border/50 pt-1" aria-hidden="true">
+            {hourTotals.map((t, h) => (
+              <div
+                key={h}
+                className={`flex-1 text-center text-[9px] font-mono tabular-nums ${
+                  h === busiestHour && t > 0 ? "text-emerald-glow font-bold" : "text-muted-foreground/40"
+                }`}
+              >
+                {h % 3 === 0 ? t : ""}
+              </div>
+            ))}
+            <span className="w-9 text-right text-[9px] font-mono text-muted-foreground/70 shrink-0 pl-1">{grandTotal}</span>
+          </div>
         </div>
       </div>
 
-      <div className="mt-4 flex items-start gap-2 text-xs text-muted-foreground border-t border-border pt-4">
-        <Sparkles className="size-3.5 text-emerald-glow shrink-0 mt-0.5" />
-        <p><span className="text-foreground font-medium">Pico identificado:</span> {peakText.replace("Pico identificado: ", "")}</p>
+      <div className="mt-4 space-y-2 border-t border-border pt-4">
+        <div className="flex items-start gap-2 text-xs text-muted-foreground">
+          <Sparkles className="size-3.5 text-emerald-glow shrink-0 mt-0.5" />
+          <p><span className="text-foreground font-medium">Pico identificado:</span> {peakText.replace("Pico identificado: ", "")}</p>
+        </div>
+        {grandTotal > 0 && (
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] font-mono text-muted-foreground pl-5">
+            <span>Dia mais ativo: <span className="text-emerald-glow">{DAYS[busiestDay]}</span> ({rowTotals[busiestDay]})</span>
+            <span>Hora mais ativa: <span className="text-emerald-glow">{busiestHour}h</span> ({hourTotals[busiestHour]})</span>
+          </div>
+        )}
       </div>
     </GlassCard>
   );
@@ -220,14 +264,108 @@ function InsightCard({
   );
 }
 
+interface Classification {
+  feat: number;
+  fix: number;
+  other: number;
+  totalConventional: number;
+  featRatio: number;
+  fixRatio: number;
+}
+
+function conventionalRatio(c: Classification): number {
+  const total = c.feat + c.fix + c.other;
+  return total > 0 ? c.totalConventional / total : 0;
+}
+
+interface TrendRow {
+  label: string;
+  deltaPp: number;
+  detail: string;
+}
+
+function buildTrend(cur?: Classification, prev?: Classification): TrendRow[] | null {
+  if (!cur || !prev) return null;
+  const curTotal = cur.feat + cur.fix + cur.other;
+  const prevTotal = prev.feat + prev.fix + prev.other;
+  if (curTotal === 0 || prevTotal === 0) return null;
+
+  const rows: Array<{ label: string; cur: number; prev: number }> = [
+    { label: "Adoção Conventional Commits", cur: conventionalRatio(cur), prev: conventionalRatio(prev) },
+    { label: "Proporção de features", cur: cur.featRatio, prev: prev.featRatio },
+    { label: "Proporção de correções", cur: cur.fixRatio, prev: prev.fixRatio },
+  ];
+  return rows.map((r) => ({
+    label: r.label,
+    deltaPp: computeDeltaPp(r.cur, r.prev) ?? 0,
+    detail: `${Math.round(r.cur * 100)}% agora · ${Math.round(r.prev * 100)}% antes`,
+  }));
+}
+
+function TrendPanel({ rows, compareLabel }: { rows: TrendRow[]; compareLabel: string }) {
+  return (
+    <GlassCard className="p-6">
+      <div className="flex items-start gap-2 mb-1">
+        <TrendingUp className="size-4 text-emerald-glow shrink-0 mt-0.5" />
+        <div>
+          <h3 className="text-base font-semibold text-foreground">Tendência vs. período anterior</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Como seus padrões de commit evoluíram em relação aos {compareLabel}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {rows.map((r) => {
+          const up = r.deltaPp > 0;
+          const down = r.deltaPp < 0;
+          const Icon = up ? TrendingUp : down ? TrendingDown : Minus;
+          // Observação neutra: a seta indica direção, não "bom/ruim".
+          const cls = up ? "text-emerald-glow" : down ? "text-amber-glow" : "text-muted-foreground";
+          return (
+            <div key={r.label} className="rounded-xl border border-border bg-foreground/[0.02] p-4">
+              <p className="text-xs text-muted-foreground mb-2">{r.label}</p>
+              <div className={`flex items-center gap-1.5 ${cls}`}>
+                <Icon className="size-4 shrink-0" aria-hidden="true" />
+                <span
+                  className="text-lg font-mono font-bold tabular-nums"
+                  aria-label={`${r.label}: ${up ? "subiu" : down ? "caiu" : "estável"} ${Math.abs(r.deltaPp)} pontos percentuais`}
+                >
+                  {up ? "+" : ""}{r.deltaPp} pontos percentuais
+                </span>
+              </div>
+              <p className="text-[10px] font-mono text-muted-foreground/60 mt-1.5">{r.detail}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="mt-5 text-[10px] text-muted-foreground/60 leading-relaxed border-t border-border pt-3">
+        Variações em pontos percentuais são observações descritivas, não metas. Períodos curtos
+        com poucos commits oscilam naturalmente — interprete com contexto.
+      </p>
+    </GlassCard>
+  );
+}
+
 function InsightsPage() {
   const user = getUser();
   const { activeRepo: repo } = useActiveRepo();
-  const { from, to } = usePeriod().period;
+  const { period } = usePeriod();
+  const { from, to } = period;
+  const prev = previousRange(period);
 
   const { data: insights, isLoading, isError, refetch } = useQuery({
     queryKey: ["insights", { repoId: repo?.id, authorLogin: user?.login, from, to }],
     queryFn: () => getInsightsMetrics({ repoId: repo!.id, authorLogin: user!.login, from, to }),
+    enabled: !!repo && !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Insights do período anterior — base para o bloco de tendência (a evolução importa).
+  const { data: prevInsights } = useQuery({
+    queryKey: ["insights", { repoId: repo?.id, authorLogin: user?.login, from: prev.from, to: prev.to }],
+    queryFn: () => getInsightsMetrics({ repoId: repo!.id, authorLogin: user!.login, from: prev.from, to: prev.to }),
     enabled: !!repo && !!user,
     staleTime: 1000 * 60 * 5,
   });
@@ -322,7 +460,7 @@ function InsightsPage() {
       result.push({
         tone: "warning",
         title: "Bug fixing acima do baseline",
-        body: `${(ind.fixRatio * 100).toFixed(0)}% do esforço foi para correções${team.fixRatio > 0 ? ` — ${((ind.fixRatio - team.fixRatio) * 100).toFixed(0)}pp acima da média da equipe` : ""}.`,
+        body: `${(ind.fixRatio * 100).toFixed(0)}% do esforço foi para correções${team.fixRatio > 0 ? ` — ${((ind.fixRatio - team.fixRatio) * 100).toFixed(0)} pontos percentuais acima da média da equipe` : ""}.`,
       });
     }
 
@@ -352,13 +490,25 @@ function InsightsPage() {
   }
 
   const autoInsights = buildInsights();
+  const trendRows = buildTrend(ind, prevInsights?.individual?.commitClassification);
+  const compareLabel = PRESET_COMPARE[period.preset];
 
   return (
     <div className="space-y-6 md:space-y-8">
       <div>
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-2">
           <Sparkles className="size-4 text-violet-glow" />
           <h3 className="text-base font-semibold text-foreground">Diagnósticos automáticos</h3>
+        </div>
+        {/* Transparência: o motor é heurístico, baseado em regras fixas — não é ML. */}
+        <div className="flex items-start gap-2 rounded-lg border border-border bg-foreground/[0.02] p-3 mb-4">
+          <FunctionSquare className="size-3.5 text-violet-glow shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Diagnósticos gerados por <span className="text-foreground/80">regras determinísticas</span> (limiares
+            sobre tipo de commit e adoção de Conventional Commits) — não há aprendizado de máquina nem
+            inferência sobre a pessoa. São observações sobre o <span className="text-foreground/80">conteúdo</span> do
+            trabalho versionado, jamais sobre quando ou quanto você trabalha.
+          </p>
         </div>
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
@@ -378,6 +528,8 @@ function InsightsPage() {
           </div>
         )}
       </div>
+
+      {trendRows && <TrendPanel rows={trendRows} compareLabel={compareLabel} />}
 
       {insights?.productivityHeatmap && (
         <>

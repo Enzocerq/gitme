@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   Area,
@@ -11,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { GitCommit, GitPullRequest, Gauge, CheckCircle2, ArrowUpRight, Loader2, Zap, Info } from "lucide-react";
+import { GitCommit, GitPullRequest, Gauge, CheckCircle2, ArrowUpRight, Loader2, Zap, Info, RefreshCw, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { KpiCard } from "@/components/kpi-card";
 import { QueryError } from "@/components/query-state";
@@ -23,12 +24,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { getOverviewMetrics, getFlowMetrics, getCollaborationMetrics, getProductivityScore } from "@/lib/api";
-import type { ProductivityScoreResponse } from "@/lib/api";
+import { getOverviewMetrics, getFlowMetrics, getCollaborationMetrics, getProductivityScore, getProductivityScoreTrend } from "@/lib/api";
+import type { ProductivityScoreResponse, ScoreTrendPoint } from "@/lib/api";
 import { getUser } from "@/lib/auth";
 import { usePeriod } from "@/hooks/use-period";
 import { useActiveRepo } from "@/hooks/use-active-repo";
 import { previousRange, computeDeltaPct, computeDeltaPp, PRESET_LABEL, PRESET_COMPARE } from "@/lib/period";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({
@@ -66,6 +68,33 @@ function LoadingSkeleton() {
         <div className="lg:col-span-2 h-80 rounded-2xl bg-obsidian-900/40 border border-border" />
         <div className="h-80 rounded-2xl bg-obsidian-900/40 border border-border" />
       </div>
+    </div>
+  );
+}
+
+function LastUpdated({ updatedAt, onRefetch }: { updatedAt: number; onRefetch: () => void }) {
+  const [label, setLabel] = useState("…");
+  useEffect(() => {
+    if (!updatedAt) return;
+    const compute = () => {
+      const diffMin = Math.floor((Date.now() - updatedAt) / 60000);
+      setLabel(diffMin <= 0 ? "Atualizado agora" : `${diffMin}min atrás`);
+    };
+    compute();
+    const id = setInterval(compute, 30000);
+    return () => clearInterval(id);
+  }, [updatedAt]);
+  return (
+    <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground">
+      <span>{label}</span>
+      <button
+        type="button"
+        onClick={onRefetch}
+        aria-label="Atualizar atividade recente"
+        className="rounded p-0.5 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30"
+      >
+        <RefreshCw className="size-3" aria-hidden="true" />
+      </button>
     </div>
   );
 }
@@ -197,7 +226,66 @@ function ScoreMethodologyDialog() {
   );
 }
 
-function ProductivityScorePanel({ data, loading, periodLabel }: { data?: ProductivityScoreResponse; loading: boolean; periodLabel: string }) {
+function ScoreTrend({ trend, compareLabel }: { trend: number | null; compareLabel: string }) {
+  if (trend === null) return null;
+  // Score maior é melhor: subir = verde, cair = vermelho.
+  const up = trend > 0;
+  const down = trend < 0;
+  const Icon = up ? ArrowUp : down ? ArrowDown : Minus;
+  const cls = up
+    ? "text-[oklch(0.82_0.18_145)] bg-[oklch(0.82_0.18_145)]/10 ring-[oklch(0.82_0.18_145)]/30"
+    : down
+    ? "text-ruby-glow bg-ruby-glow/10 ring-ruby-glow/30"
+    : "text-foreground/50 bg-foreground/5 ring-foreground/10";
+  const verbal = up ? "subiu" : down ? "caiu" : "estável";
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <span
+        className={`inline-flex items-center gap-0.5 text-xs font-mono font-semibold px-1.5 py-0.5 rounded ring-1 ${cls}`}
+        aria-label={`Score ${verbal} ${Math.abs(trend)} pontos vs. ${compareLabel}`}
+      >
+        <Icon className="size-3 shrink-0" aria-hidden="true" />
+        {up ? "+" : ""}{trend} pts
+      </span>
+      <span className="text-[10px] font-mono text-muted-foreground/70">vs. {compareLabel}</span>
+    </div>
+  );
+}
+
+function ScoreSparkline({ series }: { series: ScoreTrendPoint[] }) {
+  const data = series.map((p) => ({
+    date: new Date(p.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+    score: Math.round(p.score),
+  }));
+  return (
+    <div className="mt-6 pt-5 border-t border-border">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+          Evolução do score
+        </p>
+        <span className="text-[10px] font-mono text-muted-foreground/50">janela móvel de 30 dias</span>
+      </div>
+      <div className="h-20">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+            <defs>
+              <linearGradient id="gradScore" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--emerald-glow)" stopOpacity={0.4} />
+                <stop offset="100%" stopColor="var(--emerald-glow)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <YAxis domain={[0, 100]} hide />
+            <XAxis dataKey="date" stroke="var(--obsidian-400)" fontSize={9} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={24} />
+            <Tooltip content={<ChartTooltip />} />
+            <Line type="monotone" dataKey="score" stroke="var(--emerald-glow)" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+function ProductivityScorePanel({ data, loading, periodLabel, trend, compareLabel, series }: { data?: ProductivityScoreResponse; loading: boolean; periodLabel: string; trend: number | null; compareLabel: string; series?: ScoreTrendPoint[] }) {
   const r = 52;
   const circ = 2 * Math.PI * r;
   const score = data?.scoreFinal ?? 0;
@@ -212,7 +300,10 @@ function ProductivityScorePanel({ data, loading, periodLabel }: { data?: Product
           <h3 className="text-base font-semibold text-foreground">Score de Produtividade</h3>
           <ScoreMethodologyDialog />
         </div>
-        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">{periodLabel}</span>
+        <div className="flex items-center gap-3">
+          {!loading && <ScoreTrend trend={trend} compareLabel={compareLabel} />}
+          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">{periodLabel}</span>
+        </div>
       </div>
 
       {loading && !data ? (
@@ -249,8 +340,9 @@ function ProductivityScorePanel({ data, loading, periodLabel }: { data?: Product
               </span>
               <span className="text-[10px] font-mono text-muted-foreground tracking-widest mt-0.5">/100</span>
               <span
-                className="text-[9px] font-mono uppercase tracking-widest mt-2 px-2 py-0.5 rounded-full border"
+                className="text-[10px] font-mono uppercase tracking-widest mt-2 px-2 py-0.5 rounded-full border"
                 style={{ color, borderColor: `${color}40` }}
+                aria-label={`Score: ${label}`}
               >
                 {label}
               </span>
@@ -281,7 +373,14 @@ function ProductivityScorePanel({ data, loading, periodLabel }: { data?: Product
                       </span>
                     </div>
                   </div>
-                  <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                  <div
+                    className="h-1.5 rounded-full bg-white/5 overflow-hidden"
+                    role="progressbar"
+                    aria-valuenow={clamped}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`${comp.label}: ${clamped.toFixed(0)} de 100`}
+                  >
                     <div
                       className="h-full rounded-full transition-all duration-700 ease-out"
                       style={{
@@ -297,7 +396,40 @@ function ProductivityScorePanel({ data, loading, periodLabel }: { data?: Product
           </div>
         </div>
       )}
+
+      {!loading && series && series.length > 1 && <ScoreSparkline series={series} />}
     </GlassCard>
+  );
+}
+
+/** Mini-gauge para a taxa de aceitação: barra preenchida com banda de cor + rótulo de faixa. */
+function AcceptanceGauge({ rate }: { rate: number }) {
+  const clamped = Math.min(100, Math.max(0, rate));
+  const band =
+    clamped >= 80
+      ? { color: "var(--emerald-glow)", label: "saudável" }
+      : clamped >= 50
+      ? { color: "var(--amber-glow)", label: "moderada" }
+      : { color: "var(--ruby-glow)", label: "baixa" };
+  return (
+    <div>
+      <div
+        className="h-2 w-full rounded-full bg-obsidian-800 overflow-hidden"
+        role="progressbar"
+        aria-valuenow={Math.round(clamped)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`Taxa de aceitação: ${clamped.toFixed(0)}% (${band.label})`}
+      >
+        <div
+          className="h-full rounded-full transition-all duration-700 ease-out"
+          style={{ width: `${clamped}%`, background: band.color, boxShadow: `0 0 6px ${band.color}` }}
+        />
+      </div>
+      <p className="mt-1 text-[10px] font-mono uppercase tracking-wide" style={{ color: band.color }}>
+        {band.label}
+      </p>
+    </div>
   );
 }
 
@@ -325,7 +457,7 @@ function DashboardPage() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const { data: flow, isLoading: loadingFlow, isError: errorFlow, refetch: refetchFlow } = useQuery({
+  const { data: flow, isLoading: loadingFlow, isError: errorFlow, refetch: refetchFlow, dataUpdatedAt: flowUpdatedAt } = useQuery({
     queryKey: ["flow", params],
     queryFn: () => getFlowMetrics(params),
     enabled: !!repo && !!user,
@@ -349,6 +481,26 @@ function DashboardPage() {
   const { data: scoreData, isLoading: loadingScore, isError: errorScore, refetch: refetchScore } = useQuery({
     queryKey: ["productivityScore", user?.login, from, to],
     queryFn: () => getProductivityScore(user!.login, from, to),
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Score do período anterior — base para a tendência (a evolução importa mais que o valor absoluto).
+  // Tendência período-vs-período; uma série temporal completa exigiria um endpoint dedicado no backend.
+  const { data: prevScoreData } = useQuery({
+    queryKey: ["productivityScore", user?.login, prev.from, prev.to],
+    queryFn: () => getProductivityScore(user!.login, prev.from, prev.to),
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const scoreTrend =
+    scoreData && prevScoreData ? Math.round(scoreData.scoreFinal - prevScoreData.scoreFinal) : null;
+
+  // Série temporal do score (janela móvel de 30d) — evolução ao longo do período visualizado.
+  const { data: scoreSeries } = useQuery({
+    queryKey: ["productivityScoreTrend", user?.login, from, to],
+    queryFn: () => getProductivityScoreTrend(user!.login, from, to),
     enabled: !!user,
     staleTime: 1000 * 60 * 5,
   });
@@ -383,15 +535,27 @@ function DashboardPage() {
     }));
   const xAxisInterval = Math.max(0, Math.ceil(activitySeries.length / 8) - 1);
 
-  const recentActivity = (flow?.recent ?? []).slice(0, 5).map((item) => ({
-    type: item.kind === "commit" ? "commit" : "pr",
-    title: item.title,
-    repo: repo?.name ?? "",
-    time: formatRelativeTime(item.date),
-    status: item.state === "closed" || item.state === "merged" ? "merged" : item.state === "open" ? "open" : "ok",
-    additions: item.additions,
-    deletions: item.deletions,
-  }));
+  const repoFullName = repo?.fullName ?? "";
+  const recentActivity = (flow?.recent ?? []).slice(0, 5).map((item) => {
+    const isCommit = item.kind === "commit";
+    const href = !repoFullName
+      ? null
+      : isCommit && item.sha
+      ? `https://github.com/${repoFullName}/commit/${item.sha}`
+      : !isCommit && item.number != null
+      ? `https://github.com/${repoFullName}/pull/${item.number}`
+      : null;
+    return {
+      type: isCommit ? "commit" : "pr",
+      title: item.title,
+      repo: repo?.name ?? "",
+      time: formatRelativeTime(item.date),
+      status: item.state === "closed" || item.state === "merged" ? "merged" : item.state === "open" ? "open" : "ok",
+      additions: item.additions,
+      deletions: item.deletions,
+      href,
+    };
+  });
 
   const contributors = (collab?.reviewDistribution ?? []).slice(0, 5).map((r) => ({
     login: r.login,
@@ -406,7 +570,7 @@ function DashboardPage() {
       {errorScore ? (
         <QueryError onRetry={refetchScore} className="h-40" />
       ) : (
-        <ProductivityScorePanel data={scoreData} loading={loadingScore} periodLabel={PRESET_LABEL[period.preset]} />
+        <ProductivityScorePanel data={scoreData} loading={loadingScore} periodLabel={PRESET_LABEL[period.preset]} trend={scoreTrend} compareLabel={compareLabel} series={scoreSeries} />
       )}
 
       {/* KPIs */}
@@ -440,18 +604,13 @@ function DashboardPage() {
           delta={dAcceptancePp !== null ? { value: dAcceptancePp, suffix: " pts", compareLabel } : undefined}
           hint={`${ind.prsMerged} PRs mergeadas`}
         >
-          <div className="flex gap-1">
-            {[1, 1, 1, ind.acceptanceRate > 50 ? 1 : 0, ind.acceptanceRate > 80 ? 1 : 0].map((v, i) => (
-              <div key={i} className={`h-2 flex-1 rounded-sm ${v ? "bg-emerald-glow" : "bg-ruby-glow/30"}`} />
-            ))}
-          </div>
+          <AcceptanceGauge rate={ind.acceptanceRate} />
         </KpiCard>
 
         <KpiCard
-          label="Tempo de Lead"
+          label="Tempo de Resolução de Issue"
           value={`${leadTimeDays.toFixed(1)}d`}
           delta={dLeadTime !== null ? { value: dLeadTime, invert: true, compareLabel } : undefined}
-          hint="Da issue ao merge"
         />
       </div>
       )}
@@ -537,7 +696,7 @@ function DashboardPage() {
         <GlassCard className="overflow-hidden">
           <div className="p-6 border-b border-border flex items-center justify-between">
             <h3 className="text-base font-semibold text-foreground">Atividade Recente</h3>
-            <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Ao vivo</span>
+            <LastUpdated updatedAt={flowUpdatedAt} onRefetch={() => { void refetchFlow(); void refetchOverview(); }} />
           </div>
           {errorFlow ? (
             <div className="p-6"><QueryError onRetry={refetchFlow} className="h-28" /></div>
@@ -549,27 +708,42 @@ function DashboardPage() {
                 const Icon = a.type === "commit" ? GitCommit : a.type === "pr" ? GitPullRequest : CheckCircle2;
                 const iconColor = a.type === "commit" ? "text-emerald-glow" : "text-violet-glow";
                 const iconBorder = a.type === "commit" ? "border-emerald-glow/30 bg-emerald-glow/5" : "border-violet-glow/30 bg-violet-glow/5";
+                const RowTag = a.href ? "a" : "div";
+                const rowProps = a.href
+                  ? { href: a.href, target: "_blank", rel: "noreferrer", "aria-label": `Abrir no GitHub: ${a.title}` }
+                  : {};
                 return (
-                  <li key={i} className="px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 md:gap-4 hover:bg-obsidian-800/20 transition-colors">
-                    <div className={`size-9 grid place-items-center rounded-lg border bg-obsidian-900/60 shrink-0 ${iconBorder}`}>
-                      <Icon className={`size-4 ${iconColor}`} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">{a.title}</p>
-                      <p className="text-[11px] text-muted-foreground font-mono">{a.repo} • {a.time}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {(a.additions != null && a.additions > 0) && (
-                        <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-400">
-                          +{a.additions}
-                        </span>
+                  <li key={i}>
+                    <RowTag
+                      {...rowProps}
+                      className={cn(
+                        "px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 md:gap-4 transition-colors",
+                        a.href ? "hover:bg-obsidian-800/40 cursor-pointer group" : "hover:bg-obsidian-800/20"
                       )}
-                      {(a.deletions != null && a.deletions > 0) && (
-                        <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-red-500/40 bg-red-500/10 text-red-400">
-                          -{a.deletions}
-                        </span>
-                      )}
-                    </div>
+                    >
+                      <div className={`size-9 grid place-items-center rounded-lg border bg-obsidian-900/60 shrink-0 ${iconBorder}`}>
+                        <Icon className={`size-4 ${iconColor}`} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate group-hover:text-emerald-glow transition-colors">{a.title}</p>
+                        <p className="text-[11px] text-muted-foreground font-mono">{a.repo} • {a.time}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {(a.additions != null && a.additions > 0) && (
+                          <span aria-label={`${a.additions} adições`} className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-400">
+                            +{a.additions}
+                          </span>
+                        )}
+                        {(a.deletions != null && a.deletions > 0) && (
+                          <span aria-label={`${a.deletions} deleções`} className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-red-500/40 bg-red-500/10 text-red-400">
+                            -{a.deletions}
+                          </span>
+                        )}
+                        {a.href && (
+                          <ArrowUpRight className="size-3.5 text-muted-foreground/40 group-hover:text-emerald-glow transition-colors" aria-hidden="true" />
+                        )}
+                      </div>
+                    </RowTag>
                   </li>
                 );
               })}
@@ -602,9 +776,12 @@ function DashboardPage() {
                 ))}
               </ul>
               <div className="p-4">
-                <button className="w-full py-2.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-obsidian-800/40 transition-colors flex items-center justify-center gap-2">
+                <Link
+                  to="/collaboration"
+                  className="w-full py-2.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-obsidian-800/40 transition-colors flex items-center justify-center gap-2"
+                >
                   Ver colaboração completa <ArrowUpRight className="size-3.5" />
-                </button>
+                </Link>
               </div>
             </>
           )}

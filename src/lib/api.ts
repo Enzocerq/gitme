@@ -209,3 +209,26 @@ export async function getProductivityScore(authorLogin: string, from: string, to
   }).toString();
   return apiFetch<ProductivityScoreResponse>(`/api/productivity-score/${encodeURIComponent(authorLogin)}?${qs}`);
 }
+
+export interface ScoreTrendPoint {
+  date: string; // YYYY-MM-DD
+  score: number;
+}
+
+/**
+ * Série temporal do score (janela móvel de 30 dias por ponto). A evolução é mais
+ * informativa que o valor absoluto isolado.
+ */
+export async function getProductivityScoreTrend(
+  authorLogin: string,
+  from: string,
+  to: string,
+  points = 12
+): Promise<ScoreTrendPoint[]> {
+  const qs = new URLSearchParams({
+    startDate: `${from}T00:00:00`,
+    endDate: `${to}T23:59:59`,
+    points: String(points),
+  }).toString();
+  return apiFetch<ScoreTrendPoint[]>(`/api/productivity-score/${encodeURIComponent(authorLogin)}/trend?${qs}`);
+}

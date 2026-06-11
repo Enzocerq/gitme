@@ -21,6 +21,24 @@ export const Route = createFileRoute("/_app/activity")({
   component: ActivityPage,
 });
 
+/** Rótulo de benchmark DORA para cycle time (horas). */
+function cycleBenchmark(hours: number): string {
+  if (hours <= 0) return "primeiro commit → merge";
+  if (hours < 24) return "elite · < 1 dia";
+  if (hours < 168) return "bom · < 1 semana";
+  return "acima de 1 semana";
+}
+
+/** Rótulo de benchmark DORA para lead time (horas). */
+function leadBenchmark(hours: number): string {
+  if (hours <= 0) return "issue criada → resolvida";
+  const days = hours / 24;
+  if (days < 1) return "elite · < 1 dia";
+  if (days < 7) return "alto · < 1 semana";
+  if (days < 30) return "médio · < 1 mês";
+  return "acima de 1 mês";
+}
+
 function ActivityPage() {
   const user = getUser();
   const { activeRepo: repo } = useActiveRepo();
@@ -94,27 +112,27 @@ function ActivityPage() {
       ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <KpiCard
-          label="Dias Ativos"
+          label="Dias com Commit"
           value={isLoading ? "…" : `${ind?.activeDays ?? 0}`}
           delta={dActiveDays !== null ? { value: dActiveDays, neutral: true, compareLabel } : undefined}
-          hint="dias com commit no período"
         />
         <KpiCard
-          label="Tempo de Ciclo"
+          label="Tempo de Ciclo do PR"
           value={isLoading ? "…" : `${((ind?.cycleTimeHours ?? 0)).toFixed(1)}h`}
           delta={dCycleTime !== null ? { value: dCycleTime, invert: true, compareLabel } : undefined}
-          hint="primeiro commit → merge"
+          hint={cycleBenchmark(ind?.cycleTimeHours ?? 0)}
+          info="Tempo do primeiro commit até o merge do PR. Referência DORA (elite): abaixo de 24h. Times de alta performance ficam abaixo de uma semana. Menor é melhor."
         />
         <KpiCard
-          label="Tempo de Lead"
+          label="Tempo de Resolução de Issue"
           value={isLoading ? "…" : `${((ind?.leadTimeHours ?? 0) / 24).toFixed(1)}d`}
           delta={dLeadTime !== null ? { value: dLeadTime, invert: true, compareLabel } : undefined}
-          hint="issue criada → resolvida"
+          hint={leadBenchmark(ind?.leadTimeHours ?? 0)}
+          info="Tempo médio desde a abertura de uma issue até ela ser fechada (métrica DORA). Referência: elite < 1 dia, alto desempenho < 1 semana, médio < 1 mês. Menor é melhor."
         />
         <KpiCard
-          label="TCM"
+          label="Tamanho Médio de Commit"
           value={isLoading ? "…" : `${Math.round(ind?.tcm ?? 0)}`}
-          hint="linhas alteradas / commit"
           info="Tamanho de Commit Médio (linhas alteradas por commit). É uma estatística descritiva do seu estilo de versionamento — não uma medida de produtividade. Volume de linhas de código foi desacreditado como proxy de valor entregue desde os anos 1970. Sem 'meta': nem mais nem menos é intrinsecamente melhor."
         />
       </div>
@@ -158,54 +176,81 @@ function ActivityPage() {
         </GlassCard>
 
         <GlassCard className="p-4 md:p-6">
-          <div className="mb-4 md:mb-6">
-            <h3 className="text-base font-semibold text-foreground">Métricas da Equipe</h3>
-            <p className="text-xs text-muted-foreground">Comparativo individual vs média da equipe</p>
+          <div className="mb-4 md:mb-6 flex items-start justify-between gap-2">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Você vs Média da Equipe</h3>
+              <p className="text-xs text-muted-foreground">Barras lado a lado, escala por métrica</p>
+            </div>
+            <div className="flex items-center gap-3 text-[10px] font-mono uppercase tracking-widest shrink-0">
+              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-emerald-glow" />Você</span>
+              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-obsidian-400" />Equipe</span>
+            </div>
           </div>
           <div className="space-y-5 mt-4">
             {flow && [
               {
-                label: "Tempo de Ciclo",
-                you: `${(flow.individual.cycleTimeHours ?? 0).toFixed(1)}h`,
-                team: `${(flow.team.cycleTimeHours ?? 0).toFixed(1)}h`,
-                ratio: (flow.team.cycleTimeHours ?? 0) > 0 ? Math.min((flow.individual.cycleTimeHours ?? 0) / flow.team.cycleTimeHours!, 2) : 0,
+                label: "Tempo de Ciclo do PR",
+                youNum: flow.individual.cycleTimeHours ?? 0,
+                teamNum: flow.team.cycleTimeHours ?? 0,
+                fmt: (n: number) => `${n.toFixed(1)}h`,
                 invert: true,
               },
               {
-                label: "Tempo de Lead",
-                you: `${((flow.individual.leadTimeHours ?? 0) / 24).toFixed(1)}d`,
-                team: `${((flow.team.leadTimeHours ?? 0) / 24).toFixed(1)}d`,
-                ratio: (flow.team.leadTimeHours ?? 0) > 0 ? Math.min((flow.individual.leadTimeHours ?? 0) / flow.team.leadTimeHours!, 2) : 0,
+                label: "Tempo de Resolução de Issue",
+                youNum: (flow.individual.leadTimeHours ?? 0) / 24,
+                teamNum: (flow.team.leadTimeHours ?? 0) / 24,
+                fmt: (n: number) => `${n.toFixed(1)}d`,
                 invert: true,
               },
               {
-                label: "TCM",
-                you: `${Math.round(flow.individual.tcm ?? 0)} linhas`,
-                team: `${Math.round(flow.team.tcm ?? 0)} linhas`,
-                ratio: (flow.team.tcm ?? 0) > 0 ? Math.min((flow.individual.tcm ?? 0) / flow.team.tcm!, 2) : 0,
+                label: "Tamanho Médio de Commit",
+                youNum: flow.individual.tcm ?? 0,
+                teamNum: flow.team.tcm ?? 0,
+                fmt: (n: number) => `${Math.round(n)} linhas`,
                 invert: false,
               },
               {
                 label: "Tempo em Revisão",
-                you: `${Math.round((flow.individual.timeInReviewHours ?? 0) * 60)} min`,
-                team: `${Math.round((flow.team.timeInReviewHours ?? 0) * 60)} min`,
-                ratio: (flow.team.timeInReviewHours ?? 0) > 0 ? Math.min((flow.individual.timeInReviewHours ?? 0) / flow.team.timeInReviewHours!, 2) : 0,
+                youNum: (flow.individual.timeInReviewHours ?? 0) * 60,
+                teamNum: (flow.team.timeInReviewHours ?? 0) * 60,
+                fmt: (n: number) => `${Math.round(n)} min`,
                 invert: true,
               },
             ].map((b) => {
-              const pct = b.ratio > 0 ? Math.max(Math.round(b.ratio * 50), 2) : 0;
-              const good = b.invert ? b.ratio <= 1 : b.ratio >= 1;
-              const barColor = good ? "bg-emerald-glow" : "bg-ruby-glow";
+              // Escala relativa ao maior valor da própria linha — cada métrica tem sua unidade,
+              // então comparar larguras entre linhas diferentes não faria sentido.
+              const rowMax = Math.max(b.youNum, b.teamNum, 0.0001);
+              const youW = Math.max((b.youNum / rowMax) * 100, b.youNum > 0 ? 2 : 0);
+              const teamW = Math.max((b.teamNum / rowMax) * 100, b.teamNum > 0 ? 2 : 0);
+              // TCM não tem valência (sem "melhor"); demais: menor é melhor (invert).
+              const hasValence = b.label !== "TCM";
+              const good = hasValence ? (b.invert ? b.youNum <= b.teamNum : b.youNum >= b.teamNum) : false;
+              const youColor = !hasValence ? "bg-violet-glow" : good ? "bg-emerald-glow" : "bg-ruby-glow";
               return (
                 <div key={b.label}>
                   <div className="flex justify-between text-xs mb-1.5">
                     <span className="text-muted-foreground">{b.label}</span>
-                    <span className="font-mono text-foreground">
-                      Você: {b.you} · Média da equipe: {b.team}
+                    <span className="font-mono text-foreground tabular-nums">
+                      {b.fmt(b.youNum)} <span className="text-muted-foreground/50">·</span> {b.fmt(b.teamNum)}
                     </span>
                   </div>
-                  <div className="h-2 w-full bg-obsidian-800 rounded-full overflow-hidden">
-                    <div className={`h-full ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                  <div className="space-y-1">
+                    <div className="h-2 w-full bg-obsidian-800/60 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${youColor} transition-all duration-500`}
+                        style={{ width: `${youW}%` }}
+                        role="progressbar"
+                        aria-label={`Você — ${b.label}: ${b.fmt(b.youNum)}`}
+                      />
+                    </div>
+                    <div className="h-2 w-full bg-obsidian-800/60 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-obsidian-400 transition-all duration-500"
+                        style={{ width: `${teamW}%` }}
+                        role="progressbar"
+                        aria-label={`Média da equipe — ${b.label}: ${b.fmt(b.teamNum)}`}
+                      />
+                    </div>
                   </div>
                 </div>
               );

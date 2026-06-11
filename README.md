@@ -28,18 +28,27 @@ Além do fluxo real via OAuth GitHub, a aplicação possui um **modo demonstraç
 |------|-----------|
 | `/login` | Autenticação via GitHub OAuth ou entrada em modo demonstração |
 | `/select-repos` | Seleção de repositórios para análise (repos do GitHub ou repos de demo) |
-| `/dashboard` | Visão geral: score de produtividade, PRs, lead time, taxa de aceitação |
-| `/activity` | Velocidade de desenvolvimento: cycle time, lead time, tempo em review |
+| `/dashboard` | Visão geral: score de produtividade (com **tendência** vs. período anterior e **sparkline de evolução**), PRs, lead time, taxa de aceitação. Atividade recente com **drill-down** para o commit/PR no GitHub |
+| `/activity` | Velocidade de desenvolvimento: cycle time e lead time com **benchmark DORA**, tempo em review, comparação você vs. equipe em barras pareadas (escala por métrica) |
 | `/repositories` | Análise por repositório: commits, PRs, distribuição de esforço |
-| `/collaboration` | Métricas de time: comparação individual vs. grupo, distribuição de reviews |
-| `/insights` | Diagnósticos de **conteúdo do trabalho** (tipo de commit, padrão Conventional Commits), mapa de produtividade e painel **Ritmo de Trabalho** (autoconhecimento, sem julgamento) |
+| `/collaboration` | Métricas de time (**"Equipe"**): comparação individual vs. grupo em escalas normalizadas, distribuição de reviews com linha de **mediana** |
+| `/insights` | Diagnósticos de **conteúdo do trabalho** (motor heurístico de **regras determinísticas**, com disclaimer explícito), **tendência** vs. período anterior, mapa de produtividade com **totais por dia/hora** (`role="img"` com descrição de pico para leitores de tela) e painel **Ritmo de Trabalho** |
+
+### Acessibilidade
+
+- **Cor + texto:** badges de delta nos KPI cards carregam `aria-label` explicitando valor e valência (`melhora`/`piora`). Ícones decorativos marcados com `aria-hidden="true"`.
+- **Tipografia:** labels críticos elevados de `text-[9px]`/`text-[10px]` para `text-xs`/`text-[10px]` com mais espaço para contraste WCAG AA.
+- **Heatmap acessível:** o mapa commits × dia/hora recebe `role="img"` e `aria-label` contendo o insight de pico (ex.: "SEG às 14h concentra 22% dos commits"). Células internas marcadas como `aria-hidden`.
+- **Sem "Ao vivo" enganoso:** o cabeçalho "Atividade Recente" exibe "Atualizado há Xmin" (recalculado a cada 30 s com base em `dataUpdatedAt` do TanStack Query) + botão de refresh — reflete fielmente o `staleTime` de 5 min.
+- **Progressbars semânticos:** as barras de componente do Score de Produtividade usam `role="progressbar"` com `aria-valuenow`/`aria-valuemin`/`aria-valuemax`.
+- **Badges adições/deleções:** labels `aria-label="N adições"` / `aria-label="N deleções"` nos badges verdes/vermelhos do feed de atividade.
 
 ### KPIs Monitorados
 
-- **Productivity Score** — índice composto 0–100, com **modal de metodologia** (fórmula, pesos e ancoragem em SPACE/DORA) acessível pelo botão "Metodologia"
-- **PRs Merged** — taxa de aceitação de pull requests
-- **Lead Time** — tempo do primeiro commit até o merge
-- **Cycle Time** — tempo de abertura até o fechamento do PR
+- **Productivity Score** — índice composto 0–100, com **modal de metodologia** (fórmula, pesos e ancoragem em SPACE/DORA) acessível pelo botão "Metodologia", **badge de tendência** período-vs-período e **sparkline de evolução** (série temporal via endpoint `/api/productivity-score/{login}/trend`, janela móvel de 30 dias por ponto) — a evolução importa mais que o valor absoluto isolado
+- **PRs Merged** — taxa de aceitação de pull requests, exibida com **mini-gauge** colorido por faixa (baixa/moderada/saudável)
+- **Lead Time** — tempo do primeiro commit até o merge, com rótulo de **benchmark DORA** (elite < 1 dia, alto < 1 semana, médio < 1 mês)
+- **Cycle Time** — tempo de abertura até o fechamento do PR, com **benchmark DORA** (elite < 24h, bom < 1 semana)
 - **TCM** — tamanho de commit médio (linhas/commit). Exibido com tooltip de contexto: é estatística descritiva, **não** medida de produtividade (LOC desacreditado como proxy de valor desde os anos 1970)
 - **Time in Review** — distribuição do tempo de revisão por repositório
 
@@ -171,16 +180,16 @@ VITE_BACKEND_URL=http://localhost:8081
 src/
 ├── components/
 │   ├── ui/                  # Componentes shadcn/ui
-│   ├── app-shell.tsx        # Layout principal com sidebar (switcher de repo), seletor de período no header
+│   ├── app-shell.tsx        # Layout principal com sidebar (switcher de repo), breadcrumb do repo ativo + barra de loading global na navegação, seletor de período no header
 │   ├── glass-card.tsx       # Card glassmórfico reutilizável
-│   ├── kpi-card.tsx         # Card de métrica com delta vs. período anterior + tooltip de contexto opcional (prop `info`)
+│   ├── kpi-card.tsx         # Card de métrica com delta vs. período anterior + tooltip de contexto opcional (prop `info`) + aria-label no badge de variação
 │   ├── period-picker.tsx    # Seletor de período global (presets + intervalo personalizado)
 │   ├── query-state.tsx      # `QueryError`: estado de erro com retry reutilizável entre telas
 │   └── section-header.tsx   # Cabeçalho de seção
 ├── routes/
-│   ├── login.tsx            # Login OAuth GitHub + botão de modo demonstração
+│   ├── login.tsx            # Login OAuth GitHub (state CSRF via crypto, erro inline, feedback de redirecionamento) + botão de modo demonstração
 │   ├── auth-callback.tsx    # Callback OAuth: troca code por token
-│   ├── select-repos.tsx     # Seleção de repositórios (GitHub real ou demonstração)
+│   ├── select-repos.tsx     # Seleção de repositórios (ordenação por estrelas/nome, polling com timeout, barra de ingestão indeterminada)
 │   ├── _app.tsx             # AuthGuard + PeriodProvider que envolvem o AppShell
 │   └── _app/
 │       ├── dashboard.tsx    # Dashboard principal
@@ -201,7 +210,7 @@ src/
 │   ├── error-capture.ts     # Captura e normalização de erros de API
 │   ├── error-page.ts        # Helpers de página de erro
 │   └── utils.ts             # Utilitários gerais
-└── styles.css               # Tokens de design e variáveis CSS
+└── styles.css               # Tokens de design, variáveis CSS e utilitário de barra de progresso indeterminada
 ```
 
 ---

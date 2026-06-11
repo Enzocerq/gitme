@@ -1,10 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getUserRepos, getDemoRepos, getDemoTopContributor, startSeed, getSeedStatus, type GithubRepo } from "@/lib/api";
 import { getUser, setUser, setSelectedRepos, isAuthenticated, isSimulationMode } from "@/lib/auth";
-import { GithubIcon, GitBranch, Search, Loader2, Star, CheckCircle2, AlertTriangle, FlaskConical } from "lucide-react";
+import { GithubIcon, GitBranch, Search, Loader2, Star, CheckCircle2, AlertTriangle, FlaskConical, ArrowDownWideNarrow, ArrowDownAZ } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
+
+/** Limite máximo de tentativas de polling (~5 min a 3 s) antes de declarar timeout. */
+const MAX_POLL_ATTEMPTS = 100;
+const POLL_INTERVAL_MS = 3000;
+
+type SortKey = "stars" | "name";
 
 export const Route = createFileRoute("/select-repos")({
   head: () => ({ meta: [{ title: "Selecionar Repositório — GITME" }] }),
@@ -28,6 +34,7 @@ function SelectReposPage() {
   const isDemo = isSimulationMode();
 
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("stars");
   const [selected, setSelected] = useState<GithubRepo[]>([]);
   const [seedState, setSeedState] = useState<SeedState>({
     phase: "select",
@@ -39,6 +46,7 @@ function SelectReposPage() {
   });
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const attemptsRef = useRef(0);
 
   useEffect(() => {
     if (!isAuthenticated() && !isDemo) {
@@ -57,11 +65,19 @@ function SelectReposPage() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const filtered = (repos ?? []).filter(
-    (r) =>
-      r.name.toLowerCase().includes(search.toLowerCase()) ||
-      (r.description ?? "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    const list = (repos ?? []).filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        (r.description ?? "").toLowerCase().includes(q)
+    );
+    // Ordena por estrelas (proxy de relevância) ou alfabeticamente.
+    // O backend não expõe pushed_at, então não há ordenação por atividade recente.
+    return [...list].sort((a, b) =>
+      sortKey === "stars" ? b.stars - a.stars : a.name.localeCompare(b.name)
+    );
+  }, [repos, search, sortKey]);
 
   function stopPolling() {
     if (pollRef.current) {
@@ -121,7 +137,23 @@ function SelectReposPage() {
       return;
     }
 
+    attemptsRef.current = 0;
     pollRef.current = setInterval(async () => {
+      attemptsRef.current += 1;
+
+      // Timeout: evita ficar preso para sempre se o seed travar no backend.
+      if (attemptsRef.current > MAX_POLL_ATTEMPTS) {
+        stopPolling();
+        setSeedState((s) => ({
+          ...s,
+          phase: "error",
+          message:
+            "Tempo limite excedido (~5 min) aguardando a ingestão. O processo pode ter travado no servidor. " +
+            "Tente novamente — repositórios muito grandes podem exigir mais tempo.",
+        }));
+        return;
+      }
+
       try {
         const status = await getSeedStatus();
         setSeedState((s) => ({
@@ -156,13 +188,26 @@ function SelectReposPage() {
           stopPolling();
         }
       } catch {
-        // keep polling on transient errors
+        // erros transitórios não interrompem o polling; o timeout acima é a rede de segurança
       }
-    }, 3000);
+    }, POLL_INTERVAL_MS);
+  }
+
+  function handleRetry() {
+    stopPolling();
+    attemptsRef.current = 0;
+    setSeedState({
+      phase: "select",
+      message: "",
+      commitsIngested: 0,
+      pullRequestsIngested: 0,
+      issuesIngested: 0,
+      repoNames: [],
+    });
   }
 
   if (seedState.phase === "seeding" || seedState.phase === "done" || seedState.phase === "error") {
-    return <SeedingScreen state={seedState} />;
+    return <SeedingScreen state={seedState} onRetry={handleRetry} />;
   }
 
   return (
@@ -222,16 +267,43 @@ function SelectReposPage() {
             : "Selecione um ou mais repositórios para análise de métricas de produtividade."}
         </p>
 
-        {/* Search */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Buscar repositório…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-obsidian-900/60 backdrop-blur-xl text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-emerald-glow/50 transition-colors"
-          />
+        {/* Search + sort */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Buscar repositório…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-obsidian-900/60 backdrop-blur-xl text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-emerald-glow/50 transition-colors"
+            />
+          </div>
+          <div
+            role="group"
+            aria-label="Ordenar repositórios"
+            className="flex rounded-xl border border-border bg-obsidian-900/60 backdrop-blur-xl p-1 shrink-0"
+          >
+            {([
+              { key: "stars" as const, label: "Estrelas", Icon: ArrowDownWideNarrow },
+              { key: "name" as const, label: "Nome", Icon: ArrowDownAZ },
+            ]).map(({ key, label, Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSortKey(key)}
+                aria-pressed={sortKey === key}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                  sortKey === key
+                    ? "bg-emerald-glow/15 text-emerald-glow"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className="size-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Repo list */}
@@ -343,7 +415,7 @@ function SelectReposPage() {
   );
 }
 
-function SeedingScreen({ state }: { state: SeedState }) {
+function SeedingScreen({ state, onRetry }: { state: SeedState; onRetry: () => void }) {
   const total = state.commitsIngested + state.pullRequestsIngested + state.issuesIngested;
 
   return (
@@ -369,31 +441,47 @@ function SeedingScreen({ state }: { state: SeedState }) {
 
         <p className="text-sm text-muted-foreground mb-8">{state.message}</p>
 
-        {state.phase === "seeding" && total > 0 && (
-          <div className="space-y-3 text-left mb-6">
-            {[
-              { label: "Commits", value: state.commitsIngested, color: "bg-emerald-glow" },
-              { label: "Pull Requests", value: state.pullRequestsIngested, color: "bg-violet-glow" },
-              { label: "Issues", value: state.issuesIngested, color: "bg-amber-glow" },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className={`size-2 rounded-full ${item.color}`} />
-                  <span className="text-muted-foreground">{item.label}</span>
-                </div>
-                <span className="font-mono text-foreground tabular-nums">{item.value.toLocaleString()}</span>
+        {state.phase === "seeding" && (
+          <>
+            {/* Barra indeterminada: o backend não expõe um total estimado, então o
+                progresso real é desconhecido — comunicamos isso explicitamente. */}
+            <div
+              className="h-1.5 w-full rounded-full bg-obsidian-800 progress-indeterminate mb-2"
+              role="progressbar"
+              aria-label="Ingestão em andamento (progresso indeterminado)"
+            />
+            <p className="text-[10px] font-mono text-muted-foreground/70 uppercase tracking-widest mb-6">
+              Tempo indeterminado · contadores ao vivo abaixo
+            </p>
+
+            {total > 0 && (
+              <div className="space-y-3 text-left mb-2">
+                {[
+                  { label: "Commits", value: state.commitsIngested, color: "bg-emerald-glow" },
+                  { label: "Pull Requests", value: state.pullRequestsIngested, color: "bg-violet-glow" },
+                  { label: "Issues", value: state.issuesIngested, color: "bg-amber-glow" },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className={`size-2 rounded-full ${item.color}`} />
+                      <span className="text-muted-foreground">{item.label}</span>
+                    </div>
+                    <span className="font-mono text-foreground tabular-nums">{item.value.toLocaleString()}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
 
         {state.phase === "error" && (
-          <a
-            href="/select-repos"
-            className="inline-flex items-center justify-center gap-2 py-2.5 px-6 rounded-xl bg-foreground text-obsidian-950 font-semibold text-sm"
+          <button
+            type="button"
+            onClick={onRetry}
+            className="inline-flex items-center justify-center gap-2 py-2.5 px-6 rounded-xl bg-foreground text-obsidian-950 font-semibold text-sm transition-all hover:bg-emerald-glow"
           >
             Tentar novamente
-          </a>
+          </button>
         )}
       </GlassCard>
     </div>
