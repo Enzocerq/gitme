@@ -1,5 +1,6 @@
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, Info } from "lucide-react";
 import { GlassCard } from "./glass-card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export interface KpiDelta {
@@ -19,10 +20,12 @@ interface KpiCardProps {
   value: string;
   delta?: KpiDelta;
   hint?: string;
+  /** Texto explicativo opcional (ícone ⓘ ao lado do label) — use para contextualizar métricas que podem ser mal interpretadas. */
+  info?: string;
   children?: React.ReactNode;
 }
 
-export function KpiCard({ label, value, delta, hint, children }: KpiCardProps) {
+export function KpiCard({ label, value, delta, hint, info, children }: KpiCardProps) {
   const isUp = delta && delta.value > 0;
   const isDown = delta && delta.value < 0;
   const good = delta && !delta.neutral ? (delta.invert ? isDown : isUp) : false;
@@ -34,9 +37,29 @@ export function KpiCard({ label, value, delta, hint, children }: KpiCardProps) {
 
   return (
     <GlassCard className="p-6">
-      <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.18em] mb-2">
-        {label}
-      </p>
+      <div className="flex items-center gap-1.5 mb-2">
+        <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-[0.18em]">
+          {label}
+        </p>
+        {info && (
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`Sobre a métrica ${label}`}
+                  className="text-muted-foreground/50 hover:text-muted-foreground transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30 rounded"
+                >
+                  <Info className="size-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[260px] bg-obsidian-950/95 text-foreground border border-border backdrop-blur-xl leading-relaxed font-normal normal-case tracking-normal">
+                {info}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
 
       <span className="text-4xl font-bold font-mono tracking-tight text-foreground">
         {value}

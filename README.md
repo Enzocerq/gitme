@@ -32,15 +32,15 @@ Além do fluxo real via OAuth GitHub, a aplicação possui um **modo demonstraç
 | `/activity` | Velocidade de desenvolvimento: cycle time, lead time, tempo em review |
 | `/repositories` | Análise por repositório: commits, PRs, distribuição de esforço |
 | `/collaboration` | Métricas de time: comparação individual vs. grupo, distribuição de reviews |
-| `/insights` | Diagnósticos: mapa de produtividade (commits por dia da semana × hora), proporção features/bugs |
+| `/insights` | Diagnósticos de **conteúdo do trabalho** (tipo de commit, padrão Conventional Commits), mapa de produtividade e painel **Ritmo de Trabalho** (autoconhecimento, sem julgamento) |
 
 ### KPIs Monitorados
 
-- **Productivity Score** — índice composto 0–100
+- **Productivity Score** — índice composto 0–100, com **modal de metodologia** (fórmula, pesos e ancoragem em SPACE/DORA) acessível pelo botão "Metodologia"
 - **PRs Merged** — taxa de aceitação de pull requests
 - **Lead Time** — tempo do primeiro commit até o merge
 - **Cycle Time** — tempo de abertura até o fechamento do PR
-- **TCM** — linhas de código por commit (Technical Code Metrics)
+- **TCM** — tamanho de commit médio (linhas/commit). Exibido com tooltip de contexto: é estatística descritiva, **não** medida de produtividade (LOC desacreditado como proxy de valor desde os anos 1970)
 - **Time in Review** — distribuição do tempo de revisão por repositório
 
 ### Seletor de Período Global
@@ -52,6 +52,14 @@ Um seletor de período no header controla **todas as telas internas** simultanea
 - **Deltas vs. período anterior:** os KPIs do dashboard e da tela de atividade exibem a variação contra o **período imediatamente anterior de mesma duração** (calculada no cliente, já que o backend não expõe endpoint de comparação). A variação é mostrada com seta direcional (▲/▼) e cor — verde/vermelho para métricas com valência clara (lead time, cycle time, taxa de aceitação) e tom neutro para métricas de volume (commits, PRs). Quando o baseline é zero, o delta é omitido em vez de exibir valor falso.
 
 > **Contexto SEI:** métricas de volume não recebem cor de "bom/ruim" de propósito (evita induzir Goodhart's Law); o TCM não exibe delta pelo mesmo motivo. Alinhado aos frameworks SPACE e DORA.
+
+### Postura anti-vigilância (Software Engineering Intelligence)
+
+O projeto adota deliberadamente uma postura de **inteligência de engenharia como autoconhecimento**, não como vigilância — uma decisão de design ancorada nos frameworks **SPACE** e **DORA**, que alertam contra métricas de output puro e contra medir *quando* as pessoas trabalham:
+
+- **Padrões de horário ≠ alertas.** Commits noturnos e de fim de semana **não** são tratados como *warnings*. Eles aparecem no painel **Ritmo de Trabalho** (em `/insights`) como dado descritivo neutro, com aviso explícito de que "trabalhar fora do horário comercial não é melhor nem pior" e que o dado serve à reflexão pessoal, nunca à avaliação. Os diagnósticos automáticos restantes focam apenas no **conteúdo** do trabalho (tipo de commit, adoção de Conventional Commits, taxa de correções).
+- **TCM contextualizado.** O Tamanho de Commit Médio (linhas/commit) exibe tooltip esclarecendo que é estatística descritiva, não medida de produtividade — LOC foi desacreditado como proxy de valor entregue desde os anos 1970. Sem "meta".
+- **Score transparente.** O Score de Produtividade expõe sua metodologia completa via modal ("Metodologia"): fórmula, peso e descrição de cada um dos cinco componentes, dimensão SPACE/DORA correspondente, e limitações (depende dos dados do GitHub, não captura mentoria/design/pesquisa, não compara pessoas com contextos diferentes). Transparência da fórmula = confiança no indicador.
 
 ### Modo Demonstração
 
@@ -165,7 +173,7 @@ src/
 │   ├── ui/                  # Componentes shadcn/ui
 │   ├── app-shell.tsx        # Layout principal com sidebar + seletor de período no header
 │   ├── glass-card.tsx       # Card glassmórfico reutilizável
-│   ├── kpi-card.tsx         # Card de métrica com delta (seta + cor) vs. período anterior
+│   ├── kpi-card.tsx         # Card de métrica com delta vs. período anterior + tooltip de contexto opcional (prop `info`)
 │   ├── period-picker.tsx    # Seletor de período global (presets + intervalo personalizado)
 │   └── section-header.tsx   # Cabeçalho de seção
 ├── routes/
@@ -178,7 +186,7 @@ src/
 │       ├── activity.tsx     # Métricas de atividade
 │       ├── repositories.tsx # Análise de repositórios
 │       ├── collaboration.tsx# Métricas de colaboração
-│       └── insights.tsx     # Insights, heatmap e diagnósticos automáticos
+│       └── insights.tsx     # Diagnósticos de conteúdo, heatmap e painel Ritmo de Trabalho
 ├── hooks/
 │   ├── use-period.tsx       # Context global do período de análise (persiste em localStorage)
 │   ├── use-theme.tsx        # Toggle de tema claro/escuro

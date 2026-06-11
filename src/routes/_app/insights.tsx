@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Sparkles, AlertTriangle, TrendingUp } from "lucide-react";
+import { Sparkles, AlertTriangle, TrendingUp, Clock, ShieldCheck } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { getInsightsMetrics } from "@/lib/api";
 import { getUser, getSelectedRepo } from "@/lib/auth";
@@ -95,6 +95,100 @@ function ProductivityHeatmap({ heatmap }: { heatmap: number[][] }) {
   );
 }
 
+interface RhythmData {
+  total: number;
+  businessHoursPct: number;
+  weekendPct: number;
+  nightPct: number;
+}
+
+/**
+ * Distribui os commits por "lente temporal" para autoconhecimento.
+ * As lentes se sobrepõem de propósito (um commit de sábado às 2h conta em fim de semana
+ * e em madrugada) — são recortes independentes, não fatias de um total de 100%.
+ */
+function buildRhythm(heatmap: number[][]): RhythmData {
+  let total = 0, business = 0, weekend = 0, night = 0;
+  for (let d = 0; d < 7; d++) {
+    for (let h = 0; h < 24; h++) {
+      const v = heatmap[d]?.[h] ?? 0;
+      total += v;
+      if (d <= 4 && h >= 9 && h < 18) business += v;
+      if (d >= 5) weekend += v;
+      if (h < 6) night += v;
+    }
+  }
+  const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
+  return {
+    total,
+    businessHoursPct: pct(business),
+    weekendPct: pct(weekend),
+    nightPct: pct(night),
+  };
+}
+
+function WorkRhythmPanel({ heatmap }: { heatmap: number[][] }) {
+  const r = buildRhythm(heatmap);
+  if (r.total === 0) return null;
+
+  const lenses = [
+    { label: "Horário comercial", sub: "seg–sex · 9h–18h", pct: r.businessHoursPct },
+    { label: "Fim de semana", sub: "sáb–dom · qualquer hora", pct: r.weekendPct },
+    { label: "Madrugada", sub: "0h–6h · qualquer dia", pct: r.nightPct },
+  ];
+
+  return (
+    <GlassCard className="p-6">
+      <div className="flex items-start gap-2 mb-4">
+        <Clock className="size-4 text-violet-glow shrink-0 mt-0.5" />
+        <div>
+          <h3 className="text-base font-semibold text-foreground">Ritmo de trabalho</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Quando seus commits acontecem — para sua reflexão pessoal
+          </p>
+        </div>
+      </div>
+
+      {/* Enquadramento explícito: dado descritivo, não julgamento */}
+      <div className="flex items-start gap-2 rounded-lg border border-border bg-foreground/[0.02] p-3 mb-5">
+        <ShieldCheck className="size-3.5 text-muted-foreground shrink-0 mt-0.5" />
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Estes dados <span className="text-foreground/80">descrevem</span> padrões — não os julgam.
+          Trabalhar fora do horário comercial não é melhor nem pior: pessoas têm rotinas, fusos e
+          responsabilidades diferentes. Use como autoconhecimento, nunca como avaliação de desempenho.
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {lenses.map((l) => (
+          <div key={l.label}>
+            <div className="flex items-baseline justify-between mb-1.5">
+              <div className="flex items-baseline gap-2">
+                <span className="text-sm text-foreground">{l.label}</span>
+                <span className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-wide">
+                  {l.sub}
+                </span>
+              </div>
+              <span className="text-sm font-mono font-bold tabular-nums text-foreground">{l.pct}%</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-violet-glow/60 transition-all duration-700 ease-out"
+                style={{ width: `${l.pct}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-5 text-[10px] text-muted-foreground/60 leading-relaxed border-t border-border pt-3">
+        As lentes se sobrepõem (um commit de sábado de madrugada conta em ambas) — são recortes
+        independentes, não fatias de um total de 100%.
+      </p>
+    </GlassCard>
+  );
+}
+
 function InsightCard({
   tone,
   title,
@@ -142,27 +236,14 @@ function InsightsPage() {
   function buildInsights(): Array<{ tone: "positive" | "warning" | "info"; title: string; body: string }> {
     if (!ind || !team) return [];
     const result: Array<{ tone: "positive" | "warning" | "info"; title: string; body: string }> = [];
-    const heatmap = insights?.productivityHeatmap;
 
     const total = ind.feat + ind.fix + ind.other;
     const otherRatio = total > 0 ? ind.other / total : 0;
     const conventionalPct = total > 0 ? Math.round((ind.totalConventional / total) * 100) : 0;
 
-    let hmTotal = 0, businessHours = 0, weekendTotal = 0, nightTotal = 0;
-    if (heatmap) {
-      for (let d = 0; d < 7; d++) {
-        for (let h = 0; h < 24; h++) {
-          const v = heatmap[d][h];
-          hmTotal += v;
-          if (d <= 4 && h >= 9 && h < 18) businessHours += v;
-          if (d >= 5) weekendTotal += v;
-          if (h < 6) nightTotal += v;
-        }
-      }
-    }
-    const businessHoursPct = hmTotal > 0 ? Math.round((businessHours / hmTotal) * 100) : 0;
-    const weekendPct = hmTotal > 0 ? Math.round((weekendTotal / hmTotal) * 100) : 0;
-    const nightPct = hmTotal > 0 ? Math.round((nightTotal / hmTotal) * 100) : 0;
+    // Diagnósticos focam no CONTEÚDO do trabalho (tipo de commit, padrão, qualidade),
+    // nunca em QUANDO a pessoa trabalha — padrões de horário viram autoconhecimento
+    // neutro no painel "Ritmo de trabalho", não alertas de vigilância (ver SPACE/DORA).
 
     // ── Positivos ──────────────────────────────────────────────
     if (ind.featRatio >= 0.5) {
@@ -209,14 +290,6 @@ function InsightsPage() {
       });
     }
 
-    if (heatmap && hmTotal > 0 && businessHoursPct >= 70) {
-      result.push({
-        tone: "positive",
-        title: "Boa disciplina de horário",
-        body: `${businessHoursPct}% dos commits ocorrem em horário comercial (seg–sex, 9h–18h), indicando ritmo de trabalho sustentável.`,
-      });
-    }
-
     // ── Informativos ───────────────────────────────────────────
     if (ind.fix > 0 && ind.fixRatio <= 0.3 && !(team.fixRatio > 0 && ind.fixRatio < team.fixRatio * 0.7)) {
       result.push({
@@ -239,22 +312,6 @@ function InsightsPage() {
         tone: "info",
         title: "Commits sem classificação convencional",
         body: `${(otherRatio * 100).toFixed(0)}% dos commits não seguem prefixos como feat:, fix: ou chore:. Padronizar melhora rastreabilidade.`,
-      });
-    }
-
-    if (heatmap && hmTotal > 0 && weekendPct > 10 && weekendPct <= 25) {
-      result.push({
-        tone: "info",
-        title: "Commits nos fins de semana",
-        body: `${weekendPct}% dos commits ocorrem no fim de semana. Verifique se esse padrão é intencional ou sinal de sobrecarga.`,
-      });
-    }
-
-    if (heatmap && hmTotal > 0 && nightPct > 10 && nightPct <= 25) {
-      result.push({
-        tone: "info",
-        title: "Commits em horário noturno",
-        body: `${nightPct}% dos commits são feitos entre 0h–6h. Trabalhar tarde pode impactar a qualidade e a sustentabilidade do ritmo.`,
       });
     }
 
@@ -289,22 +346,6 @@ function InsightsPage() {
       });
     }
 
-    if (heatmap && hmTotal > 0 && weekendPct > 25) {
-      result.push({
-        tone: "warning",
-        title: "Alto volume de trabalho no fim de semana",
-        body: `${weekendPct}% dos commits ocorrem aos fins de semana. Isso pode indicar sobrecarga ou dificuldade de entregar dentro do horário normal.`,
-      });
-    }
-
-    if (heatmap && hmTotal > 0 && nightPct > 25) {
-      result.push({
-        tone: "warning",
-        title: "Padrão de commits noturnos",
-        body: `${nightPct}% dos commits são feitos entre 0h–6h. Esse padrão pode indicar sobrecarga e impacto na qualidade do código.`,
-      });
-    }
-
     return result;
   }
 
@@ -335,7 +376,10 @@ function InsightsPage() {
       </div>
 
       {insights?.productivityHeatmap && (
-        <ProductivityHeatmap heatmap={insights.productivityHeatmap} />
+        <>
+          <ProductivityHeatmap heatmap={insights.productivityHeatmap} />
+          <WorkRhythmPanel heatmap={insights.productivityHeatmap} />
+        </>
       )}
 
     </div>

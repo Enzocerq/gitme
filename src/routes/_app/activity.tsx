@@ -110,6 +110,7 @@ function ActivityPage() {
           label="TCM"
           value={isLoading ? "…" : `${Math.round(ind?.tcm ?? 0)}`}
           hint="linhas alteradas / commit"
+          info="Tamanho de Commit Médio (linhas alteradas por commit). É uma estatística descritiva do seu estilo de versionamento — não uma medida de produtividade. Volume de linhas de código foi desacreditado como proxy de valor entregue desde os anos 1970. Sem 'meta': nem mais nem menos é intrinsecamente melhor."
         />
       </div>
 

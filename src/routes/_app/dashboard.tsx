@@ -11,9 +11,17 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { GitCommit, GitPullRequest, Gauge, CheckCircle2, ArrowUpRight, Loader2, Zap } from "lucide-react";
+import { GitCommit, GitPullRequest, Gauge, CheckCircle2, ArrowUpRight, Loader2, Zap, Info } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { KpiCard } from "@/components/kpi-card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { getOverviewMetrics, getFlowMetrics, getCollaborationMetrics, getProductivityScore } from "@/lib/api";
 import type { ProductivityScoreResponse } from "@/lib/api";
 import { getUser, getSelectedRepo } from "@/lib/auth";
@@ -66,12 +74,16 @@ const SCORE_COMPONENTS: Array<{
   weight: number;
   color: string;
   meta: string;
+  /** O que o componente mede e como é normalizado para 0–100. */
+  desc: string;
+  /** Dimensão do framework SPACE / DORA a que o componente se ancora. */
+  space: string;
 }> = [
-  { key: "entrega",      label: "Entrega",      weight: 35, color: "#10b981", meta: "meta: 50 unid." },
-  { key: "eficiencia",   label: "Eficiência",   weight: 25, color: "#8b5cf6", meta: "meta: 3 dias" },
-  { key: "qualidade",    label: "Qualidade",    weight: 20, color: "#f59e0b", meta: "meta: 80% merge" },
-  { key: "colaboracao",  label: "Colaboração",  weight: 10, color: "#06b6d4", meta: "meta: 8 reviews" },
-  { key: "consistencia", label: "Consistência", weight: 10, color: "#f97316", meta: "meta: 20 dias" },
+  { key: "entrega",      label: "Entrega",      weight: 35, color: "#10b981", meta: "meta: 50 unid.", desc: "Volume de PRs mergeadas e commits no período, normalizado contra a meta de referência. Mede saída de trabalho — não confunda com valor.", space: "SPACE · Activity / DORA · Deployment frequency" },
+  { key: "eficiencia",   label: "Eficiência",   weight: 25, color: "#8b5cf6", meta: "meta: 3 dias",   desc: "Velocidade do fluxo: lead time e cycle time. Quanto menor o tempo da ideia ao merge, maior a pontuação.", space: "SPACE · Efficiency & Flow / DORA · Lead time for changes" },
+  { key: "qualidade",    label: "Qualidade",    weight: 20, color: "#f59e0b", meta: "meta: 80% merge", desc: "Taxa de aceitação de PRs e proporção de correções (fix:). Reflete estabilidade e retrabalho.", space: "SPACE · Performance / DORA · Change failure rate" },
+  { key: "colaboracao",  label: "Colaboração",  weight: 10, color: "#06b6d4", meta: "meta: 8 reviews", desc: "Reviews fornecidas a outras pessoas. Valoriza o trabalho de apoio ao time, muitas vezes invisível.", space: "SPACE · Communication & Collaboration" },
+  { key: "consistencia", label: "Consistência", weight: 10, color: "#f97316", meta: "meta: 20 dias",  desc: "Regularidade da atividade ao longo do período (dias ativos), sem premiar excesso ou rajadas isoladas.", space: "SPACE · Activity (distribuição, não intensidade)" },
 ];
 
 function getScoreLabel(s: number) {
@@ -88,6 +100,101 @@ function getScoreColor(s: number) {
   return "#ef4444";
 }
 
+function ScoreMethodologyDialog() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30 rounded px-1 py-0.5"
+        >
+          <Info className="size-3" />
+          Metodologia
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-obsidian-950/95 backdrop-blur-xl border-border">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Zap className="size-4" style={{ color: "#f59e0b" }} />
+            Como o Score é calculado
+          </DialogTitle>
+          <DialogDescription className="leading-relaxed">
+            Um índice <span className="text-foreground/80">heurístico</span> de 0 a 100 para
+            <span className="text-foreground/80"> autoconhecimento</span> — não um ranking nem uma
+            avaliação de desempenho. Os pesos são deliberados, mas não são verdade absoluta: nenhum
+            número único captura o valor real de uma pessoa engenheira.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5 text-sm">
+          {/* Fórmula */}
+          <div className="rounded-lg border border-border bg-foreground/[0.02] p-4">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+              Fórmula
+            </p>
+            <p className="font-mono text-xs text-foreground/90 leading-relaxed">
+              Score = Σ (componente<sub>i</sub> × peso<sub>i</sub>)
+            </p>
+            <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+              Cada componente é normalizado para 0–100 contra uma meta de referência e ponderado
+              pelo seu peso. A soma dos pesos é 100%.
+            </p>
+          </div>
+
+          {/* Componentes */}
+          <div className="space-y-3">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              Os cinco componentes
+            </p>
+            {SCORE_COMPONENTS.map((comp) => (
+              <div key={comp.key} className="flex gap-3">
+                <span
+                  className="mt-1 w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ background: comp.color, boxShadow: `0 0 4px ${comp.color}` }}
+                />
+                <div className="min-w-0">
+                  <p className="text-foreground font-medium">
+                    {comp.label}{" "}
+                    <span className="text-muted-foreground font-mono text-xs">· {comp.weight}%</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{comp.desc}</p>
+                  <p className="text-[10px] font-mono text-muted-foreground/60 mt-1 uppercase tracking-wide">
+                    {comp.space}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Ancoragem teórica */}
+          <div className="rounded-lg border border-violet-glow/20 bg-violet-glow/5 p-4">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-violet-glow mb-2">
+              Por que estes componentes?
+            </p>
+            <p className="text-xs text-foreground/80 leading-relaxed">
+              O modelo se ancora nos frameworks <span className="font-semibold">SPACE</span>{" "}
+              (Satisfaction, Performance, Activity, Communication, Efficiency) e{" "}
+              <span className="font-semibold">DORA</span>. Por isso combina dimensões de fluxo,
+              qualidade e colaboração — e <span className="text-foreground">evita deliberadamente</span>{" "}
+              reduzir produtividade a métricas de output puro, como linhas de código ou contagem
+              bruta de commits, que induzem a Goodhart's Law (“quando uma métrica vira meta, deixa
+              de ser uma boa métrica”).
+            </p>
+          </div>
+
+          {/* Limites */}
+          <div className="text-xs text-muted-foreground leading-relaxed border-t border-border pt-4">
+            <span className="text-foreground/70 font-medium">Limitações:</span> o score depende da
+            qualidade dos dados do GitHub, não captura trabalho fora do versionamento (mentoria,
+            design, pesquisa) e não deve ser usado para comparar pessoas com contextos diferentes.
+            Use-o para acompanhar a sua própria evolução ao longo do tempo.
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ProductivityScorePanel({ data, loading, periodLabel }: { data?: ProductivityScoreResponse; loading: boolean; periodLabel: string }) {
   const r = 52;
   const circ = 2 * Math.PI * r;
@@ -101,6 +208,7 @@ function ProductivityScorePanel({ data, loading, periodLabel }: { data?: Product
         <div className="flex items-center gap-2">
           <Zap className="size-4" style={{ color: "#f59e0b" }} />
           <h3 className="text-base font-semibold text-foreground">Score de Produtividade</h3>
+          <ScoreMethodologyDialog />
         </div>
         <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">{periodLabel}</span>
       </div>
