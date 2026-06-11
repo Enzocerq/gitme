@@ -694,9 +694,8 @@ function DashboardPage() {
       {/* Recent + Contributors */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <GlassCard className="overflow-hidden">
-          <div className="p-6 border-b border-border flex items-center justify-between">
+          <div className="p-6 border-b border-border">
             <h3 className="text-base font-semibold text-foreground">Atividade Recente</h3>
-            <LastUpdated updatedAt={flowUpdatedAt} onRefetch={() => { void refetchFlow(); void refetchOverview(); }} />
           </div>
           {errorFlow ? (
             <div className="p-6"><QueryError onRetry={refetchFlow} className="h-28" /></div>
