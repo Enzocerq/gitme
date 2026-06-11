@@ -43,7 +43,15 @@ Além do fluxo real via OAuth GitHub, a aplicação possui um **modo demonstraç
 - **TCM** — linhas de código por commit (Technical Code Metrics)
 - **Time in Review** — distribuição do tempo de revisão por repositório
 
-> **Período padrão:** todos os KPIs são calculados sobre os **últimos 12 meses** quando nenhum intervalo de datas é selecionado.
+### Seletor de Período Global
+
+Um seletor de período no header controla **todas as telas internas** simultaneamente:
+
+- **Presets:** 7 dias, 30 dias, 90 dias e 12 meses, além de um **intervalo personalizado** (date pickers).
+- **Default:** últimos **30 dias**. A escolha é persistida em `localStorage` (`gitme_period`) e os presets são re-ancorados em "hoje" a cada carga — o "30 dias" nunca congela numa janela antiga.
+- **Deltas vs. período anterior:** os KPIs do dashboard e da tela de atividade exibem a variação contra o **período imediatamente anterior de mesma duração** (calculada no cliente, já que o backend não expõe endpoint de comparação). A variação é mostrada com seta direcional (▲/▼) e cor — verde/vermelho para métricas com valência clara (lead time, cycle time, taxa de aceitação) e tom neutro para métricas de volume (commits, PRs). Quando o baseline é zero, o delta é omitido em vez de exibir valor falso.
+
+> **Contexto SEI:** métricas de volume não recebem cor de "bom/ruim" de propósito (evita induzir Goodhart's Law); o TCM não exibe delta pelo mesmo motivo. Alinhado aos frameworks SPACE e DORA.
 
 ### Modo Demonstração
 
@@ -155,25 +163,33 @@ VITE_BACKEND_URL=http://localhost:8081
 src/
 ├── components/
 │   ├── ui/                  # Componentes shadcn/ui
-│   ├── app-shell.tsx        # Layout principal com sidebar
+│   ├── app-shell.tsx        # Layout principal com sidebar + seletor de período no header
 │   ├── glass-card.tsx       # Card glassmórfico reutilizável
-│   ├── kpi-card.tsx         # Card de métrica com delta/tendência
+│   ├── kpi-card.tsx         # Card de métrica com delta (seta + cor) vs. período anterior
+│   ├── period-picker.tsx    # Seletor de período global (presets + intervalo personalizado)
 │   └── section-header.tsx   # Cabeçalho de seção
 ├── routes/
 │   ├── login.tsx            # Login OAuth GitHub + botão de modo demonstração
 │   ├── auth-callback.tsx    # Callback OAuth: troca code por token
 │   ├── select-repos.tsx     # Seleção de repositórios (GitHub real ou demonstração)
+│   ├── _app.tsx             # AuthGuard + PeriodProvider que envolvem o AppShell
 │   └── _app/
 │       ├── dashboard.tsx    # Dashboard principal
 │       ├── activity.tsx     # Métricas de atividade
 │       ├── repositories.tsx # Análise de repositórios
 │       ├── collaboration.tsx# Métricas de colaboração
 │       └── insights.tsx     # Insights, heatmap e diagnósticos automáticos
+├── hooks/
+│   ├── use-period.tsx       # Context global do período de análise (persiste em localStorage)
+│   ├── use-theme.tsx        # Toggle de tema claro/escuro
+│   └── use-mobile.tsx       # Detecção de viewport mobile
 ├── lib/
 │   ├── api.ts               # Chamadas ao backend (métricas, demo, ETL, auth)
 │   ├── auth.ts              # Autenticação: token, usuário, seleção de repos e modo demo
+│   ├── period.ts            # Tipos e helpers de período (presetRange, previousRange, computeDelta)
 │   ├── mock-data.ts         # Dados mockados para desenvolvimento offline
 │   ├── error-capture.ts     # Captura e normalização de erros de API
+│   ├── error-page.ts        # Helpers de página de erro
 │   └── utils.ts             # Utilitários gerais
 └── styles.css               # Tokens de design e variáveis CSS
 ```

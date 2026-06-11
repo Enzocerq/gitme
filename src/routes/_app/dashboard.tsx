@@ -16,7 +16,9 @@ import { GlassCard } from "@/components/glass-card";
 import { KpiCard } from "@/components/kpi-card";
 import { getOverviewMetrics, getFlowMetrics, getCollaborationMetrics, getProductivityScore } from "@/lib/api";
 import type { ProductivityScoreResponse } from "@/lib/api";
-import { getUser, getSelectedRepo, defaultDateRange } from "@/lib/auth";
+import { getUser, getSelectedRepo } from "@/lib/auth";
+import { usePeriod } from "@/hooks/use-period";
+import { previousRange, computeDeltaPct, computeDeltaPp, PRESET_LABEL } from "@/lib/period";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({
@@ -86,7 +88,7 @@ function getScoreColor(s: number) {
   return "#ef4444";
 }
 
-function ProductivityScorePanel({ data, loading }: { data?: ProductivityScoreResponse; loading: boolean }) {
+function ProductivityScorePanel({ data, loading, periodLabel }: { data?: ProductivityScoreResponse; loading: boolean; periodLabel: string }) {
   const r = 52;
   const circ = 2 * Math.PI * r;
   const score = data?.scoreFinal ?? 0;
@@ -100,7 +102,7 @@ function ProductivityScorePanel({ data, loading }: { data?: ProductivityScoreRes
           <Zap className="size-4" style={{ color: "#f59e0b" }} />
           <h3 className="text-base font-semibold text-foreground">Score de Produtividade</h3>
         </div>
-        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">últimos 30 dias</span>
+        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">{periodLabel}</span>
       </div>
 
       {loading && !data ? (
@@ -192,9 +194,12 @@ function ProductivityScorePanel({ data, loading }: { data?: ProductivityScoreRes
 function DashboardPage() {
   const user = getUser();
   const repo = getSelectedRepo();
-  const { from, to } = defaultDateRange();
+  const { period } = usePeriod();
+  const { from, to } = period;
+  const prev = previousRange(period);
 
   const params = { repoId: repo?.id ?? 0, authorLogin: user?.login ?? "", from, to };
+  const prevParams = { repoId: repo?.id ?? 0, authorLogin: user?.login ?? "", from: prev.from, to: prev.to };
 
   const { data: overview, isLoading: loadingOverview } = useQuery({
     queryKey: ["overview", params],
@@ -203,9 +208,23 @@ function DashboardPage() {
     staleTime: 1000 * 60 * 5,
   });
 
+  const { data: prevOverview } = useQuery({
+    queryKey: ["overview", prevParams],
+    queryFn: () => getOverviewMetrics(prevParams),
+    enabled: !!repo && !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
   const { data: flow } = useQuery({
     queryKey: ["flow", params],
     queryFn: () => getFlowMetrics(params),
+    enabled: !!repo && !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const { data: prevFlow } = useQuery({
+    queryKey: ["flow", prevParams],
+    queryFn: () => getFlowMetrics(prevParams),
     enabled: !!repo && !!user,
     staleTime: 1000 * 60 * 5,
   });
@@ -235,10 +254,15 @@ function DashboardPage() {
   };
   const leadTimeDays = flow ? ((flow.individual.leadTimeHours ?? 0) / 24) : 0;
 
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 30);
+  // Deltas reais contra o período imediatamente anterior (mesma duração).
+  const pRaw = prevOverview?.individual;
+  const dCommits = pRaw ? computeDeltaPct(raw.commits ?? 0, pRaw.commits ?? 0) : null;
+  const dPrsMerged = pRaw ? computeDeltaPct(raw.prsMerged ?? 0, pRaw.prsMerged ?? 0) : null;
+  const dAcceptancePp = pRaw ? computeDeltaPp(raw.acceptanceRate ?? 0, pRaw.acceptanceRate ?? 0) : null;
+  const dLeadTime =
+    prevFlow && flow ? computeDeltaPct(flow.individual.leadTimeHours ?? 0, prevFlow.individual.leadTimeHours ?? 0) : null;
+
   const activitySeries = (overview.activityOverTime ?? [])
-    .filter((p) => new Date(p.date) >= cutoff)
     .map((p) => ({
       day: new Date(p.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
       date: p.date,
@@ -269,26 +293,28 @@ function DashboardPage() {
   return (
     <div className="space-y-6 md:space-y-8">
       {/* Productivity Score */}
-      <ProductivityScorePanel data={scoreData} loading={loadingScore} />
+      <ProductivityScorePanel data={scoreData} loading={loadingScore} periodLabel={PRESET_LABEL[period.preset]} />
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <KpiCard
           label="Commits"
           value={`${ind.commits}`}
+          delta={dCommits !== null ? { value: dCommits, neutral: true } : undefined}
           hint={`Equipe: ${overview.team.commits}`}
         />
 
         <KpiCard
           label="PRs Mergeadas"
           value={`${ind.prsMerged}`}
+          delta={dPrsMerged !== null ? { value: dPrsMerged, neutral: true } : undefined}
           hint={`${ind.prsOpened} abertas no período`}
         />
 
         <KpiCard
           label="Taxa de Aceitação"
           value={`${ind.acceptanceRate.toFixed(1)}%`}
-          delta={{ value: 0 }}
+          delta={dAcceptancePp !== null ? { value: dAcceptancePp, suffix: "pp" } : undefined}
           hint={`${ind.prsMerged} PRs mergeadas`}
         >
           <div className="flex gap-1">
@@ -301,7 +327,7 @@ function DashboardPage() {
         <KpiCard
           label="Tempo de Lead"
           value={`${leadTimeDays.toFixed(1)}d`}
-          delta={flow ? { value: 0, invert: true } : undefined}
+          delta={dLeadTime !== null ? { value: dLeadTime, invert: true } : undefined}
           hint="Da issue ao merge"
         />
       </div>

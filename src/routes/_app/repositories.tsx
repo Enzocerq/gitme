@@ -4,7 +4,8 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { GitBranch, GitCommit, GitPullRequest, TrendingUp } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { getRepoMetrics } from "@/lib/api";
-import { getUser, getSelectedRepo, defaultDateRange } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
+import { usePeriod } from "@/hooks/use-period";
 
 export const Route = createFileRoute("/_app/repositories")({
   head: () => ({
@@ -22,7 +23,7 @@ const REPO_COLORS = [
 
 function ReposPage() {
   const user = getUser();
-  const { from, to } = defaultDateRange();
+  const { from, to } = usePeriod().period;
 
   const { data: repoData, isLoading } = useQuery({
     queryKey: ["repos", { authorLogin: user?.login, from, to }],

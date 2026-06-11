@@ -17,6 +17,7 @@ import {
 import { getUser, getSelectedRepo, logout } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
+import { PeriodPicker } from "@/components/period-picker";
 
 const nav = [
   { to: "/dashboard", label: "Visão Geral", icon: LayoutDashboard },
@@ -189,7 +190,8 @@ export function AppShell() {
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-3 shrink-0">
-            <div className="hidden sm:flex bg-obsidian-900/60 px-3 py-2 border border-border rounded-lg text-[10px] font-mono text-emerald-glow items-center gap-2 backdrop-blur-xl uppercase tracking-widest">
+            <PeriodPicker />
+            <div className="hidden lg:flex bg-obsidian-900/60 px-3 py-2 border border-border rounded-lg text-[10px] font-mono text-emerald-glow items-center gap-2 backdrop-blur-xl uppercase tracking-widest">
               <span className="size-2 rounded-full bg-emerald-glow animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
               GitHub Conectado
             </div>

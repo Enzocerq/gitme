@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Sparkles, AlertTriangle, TrendingUp } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { getInsightsMetrics } from "@/lib/api";
-import { getUser, getSelectedRepo, defaultDateRange } from "@/lib/auth";
+import { getUser, getSelectedRepo } from "@/lib/auth";
+import { usePeriod } from "@/hooks/use-period";
 
 export const Route = createFileRoute("/_app/insights")({
   head: () => ({
@@ -126,7 +127,7 @@ function InsightCard({
 function InsightsPage() {
   const user = getUser();
   const repo = getSelectedRepo();
-  const { from, to } = defaultDateRange();
+  const { from, to } = usePeriod().period;
 
   const { data: insights, isLoading } = useQuery({
     queryKey: ["insights", { repoId: repo?.id, authorLogin: user?.login, from, to }],

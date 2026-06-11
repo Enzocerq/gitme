@@ -5,7 +5,9 @@ import { GitCommit, GitPullRequest, CheckCircle2 } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { KpiCard } from "@/components/kpi-card";
 import { getFlowMetrics, getInsightsMetrics } from "@/lib/api";
-import { getUser, getSelectedRepo, defaultDateRange } from "@/lib/auth";
+import { getUser, getSelectedRepo } from "@/lib/auth";
+import { usePeriod } from "@/hooks/use-period";
+import { previousRange, computeDeltaPct } from "@/lib/period";
 
 export const Route = createFileRoute("/_app/activity")({
   head: () => ({
@@ -20,11 +22,20 @@ export const Route = createFileRoute("/_app/activity")({
 function ActivityPage() {
   const user = getUser();
   const repo = getSelectedRepo();
-  const { from, to } = defaultDateRange();
+  const { period } = usePeriod();
+  const { from, to } = period;
+  const prev = previousRange(period);
 
   const { data: flow, isLoading } = useQuery({
     queryKey: ["flow", { repoId: repo?.id, authorLogin: user?.login, from, to }],
     queryFn: () => getFlowMetrics({ repoId: repo!.id, authorLogin: user!.login, from, to }),
+    enabled: !!repo && !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const { data: prevFlow } = useQuery({
+    queryKey: ["flow", { repoId: repo?.id, authorLogin: user?.login, from: prev.from, to: prev.to }],
+    queryFn: () => getFlowMetrics({ repoId: repo!.id, authorLogin: user!.login, from: prev.from, to: prev.to }),
     enabled: !!repo && !!user,
     staleTime: 1000 * 60 * 5,
   });
@@ -35,6 +46,11 @@ function ActivityPage() {
     enabled: !!repo && !!user,
     staleTime: 1000 * 60 * 5,
   });
+
+  const pf = prevFlow?.individual;
+  const dActiveDays = pf && flow ? computeDeltaPct(flow.individual.activeDays ?? 0, pf.activeDays ?? 0) : null;
+  const dCycleTime = pf && flow ? computeDeltaPct(flow.individual.cycleTimeHours ?? 0, pf.cycleTimeHours ?? 0) : null;
+  const dLeadTime = pf && flow ? computeDeltaPct(flow.individual.leadTimeHours ?? 0, pf.leadTimeHours ?? 0) : null;
 
   const indClass = insights?.individual?.commitClassification;
   const teamClass = insights?.team?.commitClassification;
@@ -73,16 +89,19 @@ function ActivityPage() {
         <KpiCard
           label="Dias Ativos"
           value={isLoading ? "…" : `${ind?.activeDays ?? 0}`}
-          hint="dos últimos 365 dias"
+          delta={dActiveDays !== null ? { value: dActiveDays, neutral: true } : undefined}
+          hint="dias com commit no período"
         />
         <KpiCard
           label="Tempo de Ciclo"
           value={isLoading ? "…" : `${((ind?.cycleTimeHours ?? 0)).toFixed(1)}h`}
+          delta={dCycleTime !== null ? { value: dCycleTime, invert: true } : undefined}
           hint="primeiro commit → merge"
         />
         <KpiCard
           label="Tempo de Lead"
           value={isLoading ? "…" : `${((ind?.leadTimeHours ?? 0) / 24).toFixed(1)}d`}
+          delta={dLeadTime !== null ? { value: dLeadTime, invert: true } : undefined}
           hint="issue criada → resolvida"
         />
         <KpiCard

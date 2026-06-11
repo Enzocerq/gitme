@@ -4,7 +4,8 @@ import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Toolti
 import { Users } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { getCollaborationMetrics } from "@/lib/api";
-import { getUser, getSelectedRepo, defaultDateRange } from "@/lib/auth";
+import { getUser, getSelectedRepo } from "@/lib/auth";
+import { usePeriod } from "@/hooks/use-period";
 
 export const Route = createFileRoute("/_app/collaboration")({
   head: () => ({
@@ -19,7 +20,7 @@ export const Route = createFileRoute("/_app/collaboration")({
 function CollaborationPage() {
   const user = getUser();
   const repo = getSelectedRepo();
-  const { from, to } = defaultDateRange();
+  const { from, to } = usePeriod().period;
 
   const { data: collab, isLoading } = useQuery({
     queryKey: ["collaboration", { repoId: repo?.id, authorLogin: user?.login, from, to }],
