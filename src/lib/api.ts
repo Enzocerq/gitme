@@ -1,6 +1,6 @@
 import { getToken } from "./auth";
 
-const BASE_URL = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "http://localhost:8080";
+const BASE_URL = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "http://localhost:8081";
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const token = getToken();
