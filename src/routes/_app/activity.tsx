@@ -7,7 +7,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { getFlowMetrics, getInsightsMetrics } from "@/lib/api";
 import { getUser, getSelectedRepo } from "@/lib/auth";
 import { usePeriod } from "@/hooks/use-period";
-import { previousRange, computeDeltaPct } from "@/lib/period";
+import { previousRange, computeDeltaPct, PRESET_COMPARE } from "@/lib/period";
 
 export const Route = createFileRoute("/_app/activity")({
   head: () => ({
@@ -46,6 +46,8 @@ function ActivityPage() {
     enabled: !!repo && !!user,
     staleTime: 1000 * 60 * 5,
   });
+
+  const compareLabel = PRESET_COMPARE[period.preset];
 
   const pf = prevFlow?.individual;
   const dActiveDays = pf && flow ? computeDeltaPct(flow.individual.activeDays ?? 0, pf.activeDays ?? 0) : null;
@@ -89,19 +91,19 @@ function ActivityPage() {
         <KpiCard
           label="Dias Ativos"
           value={isLoading ? "…" : `${ind?.activeDays ?? 0}`}
-          delta={dActiveDays !== null ? { value: dActiveDays, neutral: true } : undefined}
+          delta={dActiveDays !== null ? { value: dActiveDays, neutral: true, compareLabel } : undefined}
           hint="dias com commit no período"
         />
         <KpiCard
           label="Tempo de Ciclo"
           value={isLoading ? "…" : `${((ind?.cycleTimeHours ?? 0)).toFixed(1)}h`}
-          delta={dCycleTime !== null ? { value: dCycleTime, invert: true } : undefined}
+          delta={dCycleTime !== null ? { value: dCycleTime, invert: true, compareLabel } : undefined}
           hint="primeiro commit → merge"
         />
         <KpiCard
           label="Tempo de Lead"
           value={isLoading ? "…" : `${((ind?.leadTimeHours ?? 0) / 24).toFixed(1)}d`}
-          delta={dLeadTime !== null ? { value: dLeadTime, invert: true } : undefined}
+          delta={dLeadTime !== null ? { value: dLeadTime, invert: true, compareLabel } : undefined}
           hint="issue criada → resolvida"
         />
         <KpiCard

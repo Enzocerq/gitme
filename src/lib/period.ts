@@ -23,6 +23,14 @@ export const PRESET_SHORT: Record<PeriodPreset, string> = {
   custom: "Personalizado",
 };
 
+export const PRESET_COMPARE: Record<PeriodPreset, string> = {
+  "7d": "7 dias anteriores",
+  "30d": "30 dias anteriores",
+  "90d": "90 dias anteriores",
+  "365d": "12 meses anteriores",
+  custom: "período anterior",
+};
+
 export const PRESET_LABEL: Record<PeriodPreset, string> = {
   "7d": "Últimos 7 dias",
   "30d": "Últimos 30 dias",

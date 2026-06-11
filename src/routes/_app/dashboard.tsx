@@ -18,7 +18,7 @@ import { getOverviewMetrics, getFlowMetrics, getCollaborationMetrics, getProduct
 import type { ProductivityScoreResponse } from "@/lib/api";
 import { getUser, getSelectedRepo } from "@/lib/auth";
 import { usePeriod } from "@/hooks/use-period";
-import { previousRange, computeDeltaPct, computeDeltaPp, PRESET_LABEL } from "@/lib/period";
+import { previousRange, computeDeltaPct, computeDeltaPp, PRESET_LABEL, PRESET_COMPARE } from "@/lib/period";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({
@@ -262,6 +262,8 @@ function DashboardPage() {
   const dLeadTime =
     prevFlow && flow ? computeDeltaPct(flow.individual.leadTimeHours ?? 0, prevFlow.individual.leadTimeHours ?? 0) : null;
 
+  const compareLabel = PRESET_COMPARE[period.preset];
+
   const activitySeries = (overview.activityOverTime ?? [])
     .map((p) => ({
       day: new Date(p.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
@@ -300,21 +302,21 @@ function DashboardPage() {
         <KpiCard
           label="Commits"
           value={`${ind.commits}`}
-          delta={dCommits !== null ? { value: dCommits, neutral: true } : undefined}
+          delta={dCommits !== null ? { value: dCommits, neutral: true, compareLabel } : undefined}
           hint={`Equipe: ${overview.team.commits}`}
         />
 
         <KpiCard
           label="PRs Mergeadas"
           value={`${ind.prsMerged}`}
-          delta={dPrsMerged !== null ? { value: dPrsMerged, neutral: true } : undefined}
+          delta={dPrsMerged !== null ? { value: dPrsMerged, neutral: true, compareLabel } : undefined}
           hint={`${ind.prsOpened} abertas no período`}
         />
 
         <KpiCard
           label="Taxa de Aceitação"
           value={`${ind.acceptanceRate.toFixed(1)}%`}
-          delta={dAcceptancePp !== null ? { value: dAcceptancePp, suffix: "pp" } : undefined}
+          delta={dAcceptancePp !== null ? { value: dAcceptancePp, suffix: " pts", compareLabel } : undefined}
           hint={`${ind.prsMerged} PRs mergeadas`}
         >
           <div className="flex gap-1">
@@ -327,7 +329,7 @@ function DashboardPage() {
         <KpiCard
           label="Tempo de Lead"
           value={`${leadTimeDays.toFixed(1)}d`}
-          delta={dLeadTime !== null ? { value: dLeadTime, invert: true } : undefined}
+          delta={dLeadTime !== null ? { value: dLeadTime, invert: true, compareLabel } : undefined}
           hint="Da issue ao merge"
         />
       </div>
