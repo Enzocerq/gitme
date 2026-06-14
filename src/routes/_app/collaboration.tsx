@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer,
 import { Users, Info } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { QueryError } from "@/components/query-state";
-import { getCollaborationMetrics } from "@/lib/api";
+import { getCollaborationMetrics, getFlowMetrics } from "@/lib/api";
 import { getUser } from "@/lib/auth";
 import { useActiveRepo } from "@/hooks/use-active-repo";
 import { usePeriod } from "@/hooks/use-period";
@@ -31,21 +31,33 @@ function CollaborationPage() {
     staleTime: 1000 * 60 * 5,
   });
 
+  const { data: flow, isLoading: isLoadingFlow } = useQuery({
+    queryKey: ["flow", { repoId: repo?.id, authorLogin: user?.login, from, to }],
+    queryFn: () => getFlowMetrics({ repoId: repo!.id, authorLogin: user!.login, from, to }),
+    enabled: !!repo && !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
   const reviewDistribution = (collab?.reviewDistribution ?? []).map((r) => ({
     reviewer: r.login,
     reviewed: r.reviews,
   }));
 
   const comparison = collab?.comparison;
-  // Comparação você vs equipe: cada métrica em sua própria escala (TCM em centenas de linhas
-  // esmagaria commits/PRs num eixo Y compartilhado). Barras pareadas normalizadas por linha.
-  const comparisonRows = comparison
-    ? [
-        { label: "Commits", you: comparison.individual.commits, team: comparison.teamAverage.commits, fmt: (n: number) => `${Math.round(n)}` },
-        { label: "PRs Mergeadas", you: comparison.individual.prsMerged, team: comparison.teamAverage.prsMerged, fmt: (n: number) => `${Math.round(n)}` },
-        { label: "Tamanho Médio de Commit", you: comparison.individual.tcm, team: comparison.teamAverage.tcm, fmt: (n: number) => `${Math.round(n)} linhas` },
-      ]
-    : [];
+  // Barras pareadas por linha — cada métrica normalizada na sua própria escala.
+  // Métricas de volume (commits/PRs) não têm valência; métricas de tempo: menor é melhor.
+  const comparisonRows = [
+    ...(comparison ? [
+      { label: "Commits", youNum: comparison.individual.commits, teamNum: comparison.teamAverage.commits, fmt: (n: number) => `${Math.round(n)}`, invert: false, hasValence: false },
+      { label: "PRs Mergeadas", youNum: comparison.individual.prsMerged, teamNum: comparison.teamAverage.prsMerged, fmt: (n: number) => `${Math.round(n)}`, invert: false, hasValence: false },
+    ] : []),
+    ...(flow ? [
+      { label: "Tempo de Ciclo do PR", youNum: flow.individual.cycleTimeHours ?? 0, teamNum: flow.team.cycleTimeHours ?? 0, fmt: (n: number) => `${n.toFixed(1)}h`, invert: true, hasValence: true },
+      { label: "Tempo de Resolução de Issue", youNum: (flow.individual.leadTimeHours ?? 0) / 24, teamNum: (flow.team.leadTimeHours ?? 0) / 24, fmt: (n: number) => `${n.toFixed(1)}d`, invert: true, hasValence: true },
+      { label: "Tamanho Médio de Commit", youNum: flow.individual.tcm ?? 0, teamNum: flow.team.tcm ?? 0, fmt: (n: number) => `${Math.round(n)} linhas`, invert: false, hasValence: false },
+      { label: "Tempo em Revisão", youNum: (flow.individual.timeInReviewHours ?? 0) * 60, teamNum: (flow.team.timeInReviewHours ?? 0) * 60, fmt: (n: number) => `${Math.round(n)} min`, invert: true, hasValence: true },
+    ] : []),
+  ];
 
   const myReviews = reviewDistribution.find((r) => r.reviewer === user?.login)?.reviewed ?? 0;
 
@@ -100,38 +112,44 @@ function CollaborationPage() {
           <div className="mb-4 md:mb-6 flex items-start justify-between gap-2">
             <div>
               <h3 className="text-base font-semibold text-foreground">Você vs Média da Equipe</h3>
-              <p className="text-xs text-muted-foreground">Cada métrica em sua própria escala</p>
+              <p className="text-xs text-muted-foreground">Comparação completa · escala por métrica</p>
             </div>
             <div className="flex items-center gap-3 text-[10px] font-mono uppercase tracking-widest shrink-0">
               <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-emerald-glow" />Você</span>
               <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-obsidian-400" />Equipe</span>
             </div>
           </div>
-          {comparisonRows.length === 0 ? (
+          {isLoading || isLoadingFlow ? (
+            <div className="h-64 md:h-80 flex items-center justify-center text-sm text-muted-foreground animate-pulse">
+              Carregando…
+            </div>
+          ) : comparisonRows.length === 0 ? (
             <div className="h-64 md:h-80 flex items-center justify-center text-sm text-muted-foreground">
               Sem dados de comparação disponíveis.
             </div>
           ) : (
-            <div className="space-y-6 py-2">
+            <div className="space-y-5 py-2">
               {comparisonRows.map((b) => {
-                const rowMax = Math.max(b.you, b.team, 0.0001);
-                const youW = Math.max((b.you / rowMax) * 100, b.you > 0 ? 2 : 0);
-                const teamW = Math.max((b.team / rowMax) * 100, b.team > 0 ? 2 : 0);
+                const rowMax = Math.max(b.youNum, b.teamNum, 0.0001);
+                const youW = Math.max((b.youNum / rowMax) * 100, b.youNum > 0 ? 2 : 0);
+                const teamW = Math.max((b.teamNum / rowMax) * 100, b.teamNum > 0 ? 2 : 0);
+                const good = b.hasValence ? (b.invert ? b.youNum <= b.teamNum : b.youNum >= b.teamNum) : false;
+                const youColor = !b.hasValence ? "bg-emerald-glow" : good ? "bg-emerald-glow" : "bg-ruby-glow";
                 return (
                   <div key={b.label}>
                     <div className="flex justify-between text-xs mb-1.5">
                       <span className="text-muted-foreground">{b.label}</span>
                       <span className="font-mono text-foreground tabular-nums">
-                        {b.fmt(b.you)} <span className="text-muted-foreground/50">·</span> {b.fmt(b.team)}
+                        {b.fmt(b.youNum)} <span className="text-muted-foreground/50">·</span> {b.fmt(b.teamNum)}
                       </span>
                     </div>
                     <div className="space-y-1">
                       <div className="h-2.5 w-full bg-obsidian-800/60 rounded-full overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-emerald-glow transition-all duration-500"
+                          className={`h-full rounded-full ${youColor} transition-all duration-500`}
                           style={{ width: `${youW}%` }}
                           role="progressbar"
-                          aria-label={`Você — ${b.label}: ${b.fmt(b.you)}`}
+                          aria-label={`Você — ${b.label}: ${b.fmt(b.youNum)}`}
                         />
                       </div>
                       <div className="h-2.5 w-full bg-obsidian-800/60 rounded-full overflow-hidden">
@@ -139,7 +157,7 @@ function CollaborationPage() {
                           className="h-full rounded-full bg-obsidian-400 transition-all duration-500"
                           style={{ width: `${teamW}%` }}
                           role="progressbar"
-                          aria-label={`Média da equipe — ${b.label}: ${b.fmt(b.team)}`}
+                          aria-label={`Média da equipe — ${b.label}: ${b.fmt(b.teamNum)}`}
                         />
                       </div>
                     </div>
@@ -147,7 +165,7 @@ function CollaborationPage() {
                 );
               })}
               <p className="text-[10px] text-muted-foreground/60 leading-relaxed border-t border-border pt-3">
-                TCM (linhas/commit) é estatística descritiva de estilo, não medida de produtividade — comparar não implica "melhor".
+                TCM (linhas/commit) é estatística descritiva de estilo, não medida de produtividade — comparar não implica "melhor". Métricas de tempo: verde = você está abaixo da média da equipe.
               </p>
             </div>
           )}

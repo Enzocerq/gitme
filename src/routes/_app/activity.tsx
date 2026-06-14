@@ -139,125 +139,40 @@ function ActivityPage() {
       )}
 
       {errorFlow ? null : (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        <GlassCard className="p-4 md:p-6">
-          <div className="mb-4 md:mb-6">
-            <h3 className="text-base font-semibold text-foreground">Tempo em Revisão</h3>
-            <p className="text-xs text-muted-foreground">Minutos médios aguardando aprovação por dia</p>
+      <GlassCard className="p-4 md:p-6">
+        <div className="mb-4 md:mb-6">
+          <h3 className="text-base font-semibold text-foreground">Tempo em Revisão</h3>
+          <p className="text-xs text-muted-foreground">Minutos médios aguardando aprovação por dia</p>
+        </div>
+        {reviewSeries.length === 0 ? (
+          <div className="h-52 md:h-72 flex items-center justify-center text-sm text-muted-foreground">
+            Sem dados de revisão no período.
           </div>
-          {reviewSeries.length === 0 ? (
-            <div className="h-52 md:h-72 flex items-center justify-center text-sm text-muted-foreground">
-              Sem dados de revisão no período.
-            </div>
-          ) : (
-            <div className="h-52 md:h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={reviewSeries} margin={{ bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.05)" vertical={false} />
-                  <XAxis dataKey="date" stroke="var(--obsidian-400)" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="var(--obsidian-400)" fontSize={10} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    cursor={{ fill: "oklch(1 0 0 / 0.04)" }}
-                    contentStyle={{ background: "var(--obsidian-950)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: number) => [`${v} min`, "Tempo em revisão"]}
-                  />
-                  <Bar dataKey="avgMinutes" radius={[6, 6, 0, 0]}>
-                    {reviewSeries.map((d, i) => (
-                      <Cell
-                        key={i}
-                        fill={d.status === "blocked" ? "var(--ruby-glow)" : d.status === "review" ? "var(--amber-glow)" : "var(--emerald-glow)"}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </GlassCard>
-
-        <GlassCard className="p-4 md:p-6">
-          <div className="mb-4 md:mb-6 flex items-start justify-between gap-2">
-            <div>
-              <h3 className="text-base font-semibold text-foreground">Você vs Média da Equipe</h3>
-              <p className="text-xs text-muted-foreground">Barras lado a lado, escala por métrica</p>
-            </div>
-            <div className="flex items-center gap-3 text-[10px] font-mono uppercase tracking-widest shrink-0">
-              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-emerald-glow" />Você</span>
-              <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-obsidian-400" />Equipe</span>
-            </div>
+        ) : (
+          <div className="h-52 md:h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={reviewSeries} margin={{ bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.05)" vertical={false} />
+                <XAxis dataKey="date" stroke="var(--obsidian-400)" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="var(--obsidian-400)" fontSize={10} tickLine={false} axisLine={false} />
+                <Tooltip
+                  cursor={{ fill: "oklch(1 0 0 / 0.04)" }}
+                  contentStyle={{ background: "var(--obsidian-950)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+                  formatter={(v: number) => [`${v} min`, "Tempo em revisão"]}
+                />
+                <Bar dataKey="avgMinutes" radius={[6, 6, 0, 0]}>
+                  {reviewSeries.map((d, i) => (
+                    <Cell
+                      key={i}
+                      fill={d.status === "blocked" ? "var(--ruby-glow)" : d.status === "review" ? "var(--amber-glow)" : "var(--emerald-glow)"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          <div className="space-y-5 mt-4">
-            {flow && [
-              {
-                label: "Tempo de Ciclo do PR",
-                youNum: flow.individual.cycleTimeHours ?? 0,
-                teamNum: flow.team.cycleTimeHours ?? 0,
-                fmt: (n: number) => `${n.toFixed(1)}h`,
-                invert: true,
-              },
-              {
-                label: "Tempo de Resolução de Issue",
-                youNum: (flow.individual.leadTimeHours ?? 0) / 24,
-                teamNum: (flow.team.leadTimeHours ?? 0) / 24,
-                fmt: (n: number) => `${n.toFixed(1)}d`,
-                invert: true,
-              },
-              {
-                label: "Tamanho Médio de Commit",
-                youNum: flow.individual.tcm ?? 0,
-                teamNum: flow.team.tcm ?? 0,
-                fmt: (n: number) => `${Math.round(n)} linhas`,
-                invert: false,
-              },
-              {
-                label: "Tempo em Revisão",
-                youNum: (flow.individual.timeInReviewHours ?? 0) * 60,
-                teamNum: (flow.team.timeInReviewHours ?? 0) * 60,
-                fmt: (n: number) => `${Math.round(n)} min`,
-                invert: true,
-              },
-            ].map((b) => {
-              // Escala relativa ao maior valor da própria linha — cada métrica tem sua unidade,
-              // então comparar larguras entre linhas diferentes não faria sentido.
-              const rowMax = Math.max(b.youNum, b.teamNum, 0.0001);
-              const youW = Math.max((b.youNum / rowMax) * 100, b.youNum > 0 ? 2 : 0);
-              const teamW = Math.max((b.teamNum / rowMax) * 100, b.teamNum > 0 ? 2 : 0);
-              // TCM não tem valência (sem "melhor"); demais: menor é melhor (invert).
-              const hasValence = b.label !== "TCM";
-              const good = hasValence ? (b.invert ? b.youNum <= b.teamNum : b.youNum >= b.teamNum) : false;
-              const youColor = !hasValence ? "bg-violet-glow" : good ? "bg-emerald-glow" : "bg-ruby-glow";
-              return (
-                <div key={b.label}>
-                  <div className="flex justify-between text-xs mb-1.5">
-                    <span className="text-muted-foreground">{b.label}</span>
-                    <span className="font-mono text-foreground tabular-nums">
-                      {b.fmt(b.youNum)} <span className="text-muted-foreground/50">·</span> {b.fmt(b.teamNum)}
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="h-2 w-full bg-obsidian-800/60 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${youColor} transition-all duration-500`}
-                        style={{ width: `${youW}%` }}
-                        role="progressbar"
-                        aria-label={`Você — ${b.label}: ${b.fmt(b.youNum)}`}
-                      />
-                    </div>
-                    <div className="h-2 w-full bg-obsidian-800/60 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-obsidian-400 transition-all duration-500"
-                        style={{ width: `${teamW}%` }}
-                        role="progressbar"
-                        aria-label={`Média da equipe — ${b.label}: ${b.fmt(b.teamNum)}`}
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </GlassCard>
-      </div>
+        )}
+      </GlassCard>
       )}
 
       {errorInsights ? (

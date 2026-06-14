@@ -29,9 +29,9 @@ Além do fluxo real via OAuth GitHub, a aplicação possui um **modo demonstraç
 | `/login` | Autenticação via GitHub OAuth ou entrada em modo demonstração |
 | `/select-repos` | Seleção de repositórios para análise (repos do GitHub ou repos de demo) |
 | `/dashboard` | Visão geral: score de produtividade (com **tendência** vs. período anterior e **sparkline de evolução**), PRs, lead time, taxa de aceitação. Atividade recente com **drill-down** para o commit/PR no GitHub |
-| `/activity` | Velocidade de desenvolvimento: cycle time e lead time com **benchmark DORA**, tempo em review, comparação você vs. equipe em barras pareadas (escala por métrica) |
+| `/activity` | Velocidade de desenvolvimento: cycle time e lead time com **benchmark DORA**, tempo em review |
 | `/repositories` | Análise por repositório: commits, PRs, distribuição de esforço |
-| `/collaboration` | Métricas de time (**"Equipe"**): comparação individual vs. grupo em escalas normalizadas, distribuição de reviews com linha de **mediana** |
+| `/collaboration` | Métricas de time (**"Equipe"**): comparação unificada você vs. grupo com todas as métricas (commits, PRs, cycle time, lead time, TCM, tempo em revisão) em barras pareadas por escala, distribuição de reviews com linha de **mediana** |
 | `/insights` | Diagnósticos de **conteúdo do trabalho** (motor heurístico de **regras determinísticas**, com disclaimer explícito), **tendência** vs. período anterior, mapa de produtividade com **totais por dia/hora** (`role="img"` com descrição de pico para leitores de tela) e painel **Ritmo de Trabalho** |
 
 ### Acessibilidade
