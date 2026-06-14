@@ -2,8 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getUserRepos, getDemoRepos, getDemoTopContributor, startSeed, getSeedStatus, type GithubRepo } from "@/lib/api";
-import { getUser, setUser, setSelectedRepos, isAuthenticated, isSimulationMode } from "@/lib/auth";
-import { GithubIcon, GitBranch, Search, Loader2, Star, CheckCircle2, AlertTriangle, FlaskConical, ArrowDownWideNarrow, ArrowDownAZ } from "lucide-react";
+import { getUser, setUser, setSelectedRepos, isAuthenticated, isSimulationMode, logout } from "@/lib/auth";
+import { GithubIcon, GitBranch, Search, Loader2, Star, CheckCircle2, AlertTriangle, FlaskConical, ArrowDownWideNarrow, ArrowDownAZ, LogOut } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 
 /** Limite máximo de tentativas de polling (~5 min a 3 s) antes de declarar timeout. */
@@ -410,6 +410,15 @@ function SelectReposPage() {
             ? "Os dados já estão carregados. Você será redirecionado imediatamente."
             : "Os dados serão ingeridos na primeira vez. Repositórios grandes podem levar alguns minutos."}
         </p>
+
+        <button
+          type="button"
+          onClick={() => { logout(); navigate({ to: "/login" }); }}
+          className="mt-6 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border text-muted-foreground text-sm font-medium transition-colors hover:border-foreground/30 hover:text-foreground"
+        >
+          <LogOut className="size-4" />
+          Voltar ao login
+        </button>
       </div>
     </div>
   );
