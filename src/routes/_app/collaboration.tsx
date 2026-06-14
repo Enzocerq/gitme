@@ -199,66 +199,6 @@ function CollaborationPage() {
         </GlassCard>
       </div>
 
-      <GlassCard className="overflow-hidden">
-        <div className="p-6 border-b border-border">
-          <h3 className="text-base font-semibold text-foreground">Top Revisores do Repositório</h3>
-          <p className="text-xs text-muted-foreground">Snapshot por número de revisões no período</p>
-        </div>
-        {reviewDistribution.length === 0 ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">Sem dados de revisão disponíveis.</div>
-        ) : (
-          <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[480px]">
-            <thead>
-              <tr className="bg-obsidian-950/50 text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
-                <th className="px-6 py-3 font-medium">Desenvolvedor</th>
-                <th className="px-6 py-3 text-center font-medium">Revisões</th>
-                <th className="px-6 py-3 font-medium">Participação</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm divide-y divide-border">
-              {reviewDistribution
-                .sort((a, b) => b.reviewed - a.reviewed)
-                .map((m) => {
-                  const total = reviewDistribution.reduce((s, x) => s + x.reviewed, 0);
-                  const pct = total > 0 ? Math.round((m.reviewed / total) * 100) : 0;
-                  const isMe = m.reviewer === user?.login;
-                  return (
-                    <tr key={m.reviewer} className="hover:bg-obsidian-800/20 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={`https://github.com/${m.reviewer}.png`}
-                            alt={m.reviewer}
-                            className="size-9 rounded-full border border-border"
-                          />
-                          <div>
-                            <p className={`font-medium ${isMe ? "text-emerald-glow" : "text-foreground"}`}>
-                              @{m.reviewer} {isMe && <span className="text-xs text-muted-foreground">(você)</span>}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-center font-mono tabular-nums">{m.reviewed}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 h-1.5 bg-obsidian-800 rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full"
-                              style={{ width: `${pct}%`, background: isMe ? "var(--emerald-glow)" : "var(--violet-glow)" }}
-                            />
-                          </div>
-                          <span className="text-xs font-mono text-muted-foreground w-8 text-right">{pct}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
-          </div>
-        )}
-      </GlassCard>
     </div>
   );
 }

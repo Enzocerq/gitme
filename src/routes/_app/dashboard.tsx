@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { GitCommit, GitPullRequest, Gauge, CheckCircle2, ArrowUpRight, Loader2, Zap, Info, RefreshCw, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { GitCommit, GitPullRequest, CheckCircle2, ArrowUpRight, Loader2, Zap, Info, RefreshCw, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { KpiCard } from "@/components/kpi-card";
 import { QueryError } from "@/components/query-state";
@@ -557,13 +557,6 @@ function DashboardPage() {
     };
   });
 
-  const contributors = (collab?.reviewDistribution ?? []).slice(0, 5).map((r) => ({
-    login: r.login,
-    name: r.login,
-    reviews: r.reviews,
-    avatar: `https://github.com/${r.login}.png`,
-  }));
-
   return (
     <div className="space-y-6 md:space-y-8">
       {/* Productivity Score */}
@@ -691,9 +684,8 @@ function DashboardPage() {
       </div>
       )}
 
-      {/* Recent + Contributors */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        <GlassCard className="overflow-hidden">
+      {/* Recent Activity */}
+      <GlassCard className="overflow-hidden">
           <div className="p-6 border-b border-border">
             <h3 className="text-base font-semibold text-foreground">Atividade Recente</h3>
           </div>
@@ -749,43 +741,6 @@ function DashboardPage() {
             </ul>
           )}
         </GlassCard>
-
-        <GlassCard className="overflow-hidden">
-          <div className="p-6 border-b border-border flex items-center justify-between">
-            <h3 className="text-base font-semibold text-foreground">Top Revisores</h3>
-            <Gauge className="size-4 text-emerald-glow" />
-          </div>
-          {contributors.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">Sem dados de revisão no período.</div>
-          ) : (
-            <>
-              <ul className="divide-y divide-border">
-                {contributors.map((m) => (
-                  <li key={m.login} className="px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 md:gap-4">
-                    <img src={m.avatar} alt={m.name} className="size-9 rounded-full border border-border" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">{m.name}</p>
-                      <p className="text-[11px] text-muted-foreground font-mono">@{m.login}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-base font-bold font-mono text-emerald-glow">{m.reviews}</p>
-                      <p className="text-[10px] font-mono text-muted-foreground uppercase">revisões</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <div className="p-4">
-                <Link
-                  to="/collaboration"
-                  className="w-full py-2.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-obsidian-800/40 transition-colors flex items-center justify-center gap-2"
-                >
-                  Ver colaboração completa <ArrowUpRight className="size-3.5" />
-                </Link>
-              </div>
-            </>
-          )}
-        </GlassCard>
-      </div>
     </div>
   );
 }
