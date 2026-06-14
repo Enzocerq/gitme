@@ -255,11 +255,8 @@ O projeto usa **Cloudflare Workers** para hospedagem serverless via o plugin ofi
 # 1. Autentique no Cloudflare (primeira vez)
 npx wrangler login
 
-# 2. Build de produção (lê as variáveis do .env)
-npm run build
-
-# 3. Deploy para Cloudflare Workers
-npx wrangler deploy
+# 2. Execute o script de deploy (build + wrangler deploy)
+bash deploy.sh
 ```
 
 > Antes do deploy, configure `VITE_REDIRECT_URI` e `VITE_BACKEND_URL` no `.env` com os valores de produção.
