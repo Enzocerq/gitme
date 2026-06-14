@@ -612,13 +612,13 @@ function DashboardPage() {
       {(errorOverview && errorFlow) ? (
         <QueryError onRetry={() => { void refetchOverview(); void refetchFlow(); }} className="h-72" />
       ) : loadingOverview && loadingFlow ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          <div className="lg:col-span-2 h-80 rounded-2xl bg-obsidian-900/40 border border-border animate-pulse" />
+        <div className="flex flex-col gap-4 md:gap-6">
+          <div className="h-80 rounded-2xl bg-obsidian-900/40 border border-border animate-pulse" />
           <div className="h-80 rounded-2xl bg-obsidian-900/40 border border-border animate-pulse" />
         </div>
       ) : (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-        <GlassCard className="lg:col-span-2 p-4 md:p-6">
+      <div className="flex flex-col gap-4 md:gap-6">
+        <GlassCard className="p-4 md:p-6">
           <div className="flex flex-wrap items-start justify-between gap-2 mb-4 md:mb-6">
             <div>
               <h3 className="text-base font-semibold text-foreground">Velocidade de Entrega</h3>
@@ -660,9 +660,15 @@ function DashboardPage() {
         </GlassCard>
 
         <GlassCard className="p-4 md:p-6">
-          <div className="mb-4 md:mb-6">
-            <h3 className="text-base font-semibold text-foreground">Você vs Equipe</h3>
-            <p className="text-xs text-muted-foreground">Commits diários comparados</p>
+          <div className="flex flex-wrap items-start justify-between gap-2 mb-4 md:mb-6">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Você vs Equipe</h3>
+              <p className="text-xs text-muted-foreground">Commits diários comparados</p>
+            </div>
+            <div className="flex gap-4 text-[10px] font-mono uppercase tracking-widest">
+              <div className="flex items-center gap-2"><span className="size-2 rounded-full bg-emerald-glow shadow-[0_0_8px_rgba(16,185,129,0.8)]" />Você</div>
+              <div className="flex items-center gap-2"><span className="size-2 rounded-full bg-obsidian-400" />Equipe</div>
+            </div>
           </div>
           <div className="h-52 md:h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -675,10 +681,6 @@ function DashboardPage() {
                 <Line type="monotone" dataKey="teamCommits" stroke="var(--obsidian-400)" strokeWidth={2} strokeDasharray="4 4" dot={false} />
               </LineChart>
             </ResponsiveContainer>
-          </div>
-          <div className="mt-4 flex gap-4 text-[10px] font-mono uppercase tracking-widest">
-            <div className="flex items-center gap-2"><span className="size-2 rounded-full bg-emerald-glow" />Você</div>
-            <div className="flex items-center gap-2"><span className="size-2 rounded-full bg-obsidian-400" />Equipe</div>
           </div>
         </GlassCard>
       </div>
