@@ -14,6 +14,8 @@ import {
   Menu,
   X,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Check,
 } from "lucide-react";
 import { getUser, logout } from "@/lib/auth";
@@ -45,6 +47,7 @@ export function AppShell() {
   const { isDark, toggle } = useTheme();
   const meta = titles[pathname] ?? { title: "GITME", subtitle: "Inteligência de engenharia em tempo real" };
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [repoSwitcherOpen, setRepoSwitcherOpen] = useState(false);
 
   const user = getUser();
@@ -88,18 +91,20 @@ export function AppShell() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 h-full w-64 border-r border-border bg-obsidian-950/95 backdrop-blur-xl z-40 flex flex-col transition-transform duration-300 ease-in-out",
+          "fixed left-0 top-0 h-full border-r border-border bg-obsidian-950/95 backdrop-blur-xl z-40 flex flex-col transition-all duration-300 ease-in-out overflow-hidden",
+          sidebarCollapsed ? "md:w-16" : "md:w-64",
+          "w-64",
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
-        <div className="p-6 flex items-center gap-3 border-b border-border">
+        <div className={cn("p-4 flex items-center gap-3 border-b border-border", sidebarCollapsed && "md:justify-center md:px-0")}>
           <div
             className="size-8 rounded-lg flex items-center justify-center shrink-0"
             style={{ background: "linear-gradient(135deg, var(--color-emerald-glow), var(--color-violet-deep))" }}
           >
             <GithubIcon className="size-4 text-primary-foreground" />
           </div>
-          <div className="min-w-0 flex-1">
+          <div className={cn("min-w-0 flex-1", sidebarCollapsed && "md:hidden")}>
             <span className="font-bold text-base tracking-tight text-foreground block leading-none">
               <span className="text-emerald-glow">git</span>
               <span className="text-violet-deep">me</span>
@@ -113,10 +118,19 @@ export function AppShell() {
           >
             <X className="size-5" />
           </button>
+          {!sidebarCollapsed && (
+            <button
+              onClick={() => setSidebarCollapsed(true)}
+              className="hidden md:grid size-8 place-items-center rounded-lg text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              aria-label="Minimizar menu"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+          )}
         </div>
 
         {/* Repo switcher */}
-        {activeRepo && (
+        {activeRepo && !sidebarCollapsed && (
           <div className="mx-3 mt-3 relative">
             {allRepos.length > 1 ? (
               <>
@@ -190,6 +204,15 @@ export function AppShell() {
         )}
 
         <nav className="p-3 space-y-1 flex-1 mt-1">
+          {sidebarCollapsed && (
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              className="hidden md:grid w-full place-items-center py-2 rounded-lg text-muted-foreground hover:text-foreground transition-colors mb-1"
+              aria-label="Expandir menu"
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          )}
           {nav.map((item) => {
             const active = pathname === item.to;
             const Icon = item.icon;
@@ -198,16 +221,18 @@ export function AppShell() {
                 key={item.to}
                 to={item.to}
                 onClick={() => setSidebarOpen(false)}
+                title={sidebarCollapsed ? item.label : undefined}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all",
+                  sidebarCollapsed && "md:justify-center md:px-0",
                   active
                     ? "bg-emerald-glow/10 text-emerald-glow font-medium border border-emerald-glow/20"
                     : "text-muted-foreground hover:text-foreground hover:bg-obsidian-800/50"
                 )}
               >
-                <Icon className="size-4" />
-                <span>{item.label}</span>
-                {active && (
+                <Icon className="size-4 shrink-0" />
+                <span className={cn(sidebarCollapsed && "md:hidden")}>{item.label}</span>
+                {active && !sidebarCollapsed && (
                   <span className="ml-auto size-1.5 rounded-full bg-emerald-glow shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                 )}
               </Link>
@@ -216,7 +241,29 @@ export function AppShell() {
         </nav>
 
         <div className="p-4">
-          <div className="flex items-center gap-3 p-3 bg-obsidian-900/60 border border-border rounded-xl backdrop-blur-xl">
+          {sidebarCollapsed ? (
+            <div className="hidden md:flex flex-col items-center gap-2">
+              {user ? (
+                <img
+                  src={user.avatarUrl}
+                  alt={user.login}
+                  title={user.name ?? user.login}
+                  className="size-8 rounded-full border border-border"
+                />
+              ) : (
+                <div className="size-8 rounded-full border border-border bg-obsidian-800" />
+              )}
+              <button
+                onClick={handleLogout}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Sair"
+                title="Sair"
+              >
+                <LogOut className="size-4" />
+              </button>
+            </div>
+          ) : null}
+          <div className={cn("flex items-center gap-3 p-3 bg-obsidian-900/60 border border-border rounded-xl backdrop-blur-xl", sidebarCollapsed && "md:hidden")}>
             {user ? (
               <img
                 src={user.avatarUrl}
@@ -246,7 +293,7 @@ export function AppShell() {
       </aside>
 
       {/* Main */}
-      <main className="md:pl-64">
+      <main className={cn("transition-all duration-300", sidebarCollapsed ? "md:pl-16" : "md:pl-64")}>
         <header className="h-16 md:h-20 border-b border-border flex items-center justify-between px-4 md:px-8 sticky top-0 bg-obsidian-950/70 backdrop-blur-xl z-30 gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
