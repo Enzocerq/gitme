@@ -1,6 +1,6 @@
 // Período de análise global + utilitários de comparação contra o período anterior.
 
-export type PeriodPreset = "7d" | "30d" | "90d" | "365d" | "custom";
+export type PeriodPreset = "7d" | "30d" | "90d" | "180d" | "365d" | "custom";
 
 export interface Period {
   preset: PeriodPreset;
@@ -12,6 +12,7 @@ export const PRESET_DAYS: Record<Exclude<PeriodPreset, "custom">, number> = {
   "7d": 7,
   "30d": 30,
   "90d": 90,
+  "180d": 180,
   "365d": 365,
 };
 
@@ -19,6 +20,7 @@ export const PRESET_SHORT: Record<PeriodPreset, string> = {
   "7d": "7 dias",
   "30d": "30 dias",
   "90d": "90 dias",
+  "180d": "6 meses",
   "365d": "12 meses",
   custom: "Personalizado",
 };
@@ -27,6 +29,7 @@ export const PRESET_COMPARE: Record<PeriodPreset, string> = {
   "7d": "7 dias anteriores",
   "30d": "30 dias anteriores",
   "90d": "90 dias anteriores",
+  "180d": "6 meses anteriores",
   "365d": "12 meses anteriores",
   custom: "período anterior",
 };
@@ -35,6 +38,7 @@ export const PRESET_LABEL: Record<PeriodPreset, string> = {
   "7d": "Últimos 7 dias",
   "30d": "Últimos 30 dias",
   "90d": "Últimos 90 dias",
+  "180d": "Últimos 6 meses",
   "365d": "Últimos 12 meses",
   custom: "Período personalizado",
 };

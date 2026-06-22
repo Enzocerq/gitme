@@ -4,7 +4,7 @@ import { usePeriod } from "@/hooks/use-period";
 import { PRESET_SHORT, todayISO, type PeriodPreset } from "@/lib/period";
 import { cn } from "@/lib/utils";
 
-const PRESETS: Array<Exclude<PeriodPreset, "custom">> = ["7d", "30d", "90d", "365d"];
+const PRESETS: Array<Exclude<PeriodPreset, "custom">> = ["7d", "30d", "90d", "180d", "365d"];
 
 function fmtShort(iso: string): string {
   const [, m, d] = iso.split("-");
