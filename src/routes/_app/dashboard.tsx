@@ -352,9 +352,6 @@ function ScoreSparkline({ series }: { series: ScoreTrendPoint[] }) {
         <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
           Evolução do score
         </p>
-        <span className="text-[10px] font-mono text-muted-foreground/50">
-          janela móvel de 30 dias
-        </span>
       </div>
       <div className="h-20">
         <ResponsiveContainer width="100%" height="100%">
@@ -513,13 +510,12 @@ function ProductivityScorePanel({
                         style={{ background: comp.color, boxShadow: `0 0 4px ${comp.color}` }}
                       />
                       <span className="text-foreground">{comp.label}</span>
-                      <span className="text-muted-foreground/50">{comp.weight}%</span>
                     </div>
-                    <div className="flex items-center gap-2 text-[11px] font-mono">
-                      <span className="text-muted-foreground/50">{metaLabel(comp.key, goals)}</span>
+                    <div className="flex items-center gap-3 text-[11px] font-mono">
+                      <span className="text-muted-foreground">{metaLabel(comp.key, goals)}</span>
                       <span className="tabular-nums font-bold" style={{ color: comp.color }}>
                         {clamped.toFixed(0)}
-                        <span className="text-muted-foreground font-normal">/100</span>
+                        <span className="font-normal" style={{ color: comp.color }}>%</span>
                       </span>
                     </div>
                   </div>
@@ -529,7 +525,7 @@ function ProductivityScorePanel({
                     aria-valuenow={clamped}
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-label={`${comp.label}: ${clamped.toFixed(0)} de 100`}
+                    aria-label={`${comp.label}: ${clamped.toFixed(0)}%`}
                   >
                     <div
                       className="h-full rounded-full transition-all duration-700 ease-out"
