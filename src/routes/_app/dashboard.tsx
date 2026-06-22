@@ -12,10 +12,24 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { GitCommit, GitPullRequest, CheckCircle2, ArrowUpRight, Loader2, Zap, Info, RefreshCw, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import {
+  GitCommit,
+  GitPullRequest,
+  CheckCircle2,
+  ArrowUpRight,
+  Loader2,
+  Zap,
+  Info,
+  RefreshCw,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  Target,
+} from "lucide-react";
 import { GlassCard } from "@/components/glass-card";
 import { KpiCard } from "@/components/kpi-card";
 import { QueryError } from "@/components/query-state";
+import { GoalsDialog } from "@/components/goals-dialog";
 import {
   Dialog,
   DialogContent,
@@ -24,19 +38,35 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { getOverviewMetrics, getFlowMetrics, getCollaborationMetrics, getProductivityScore, getProductivityScoreTrend } from "@/lib/api";
-import type { ProductivityScoreResponse, ScoreTrendPoint } from "@/lib/api";
+import {
+  getOverviewMetrics,
+  getFlowMetrics,
+  getCollaborationMetrics,
+  getProductivityScore,
+  getProductivityScoreTrend,
+} from "@/lib/api";
+import type { ProductivityScoreResponse, ScoreTrendPoint, ProductivityGoals } from "@/lib/api";
 import { getUser } from "@/lib/auth";
 import { usePeriod } from "@/hooks/use-period";
+import { useGoals } from "@/hooks/use-goals";
 import { useActiveRepo } from "@/hooks/use-active-repo";
-import { previousRange, computeDeltaPct, computeDeltaPp, PRESET_LABEL, PRESET_COMPARE } from "@/lib/period";
+import {
+  previousRange,
+  computeDeltaPct,
+  computeDeltaPp,
+  PRESET_LABEL,
+  PRESET_COMPARE,
+} from "@/lib/period";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({
     meta: [
       { title: "Dashboard — GITME" },
-      { name: "description", content: "Resumo executivo de commits, PRs, score de produtividade e taxa de aceitação." },
+      {
+        name: "description",
+        content: "Resumo executivo de commits, PRs, score de produtividade e taxa de aceitação.",
+      },
     ],
   }),
   component: DashboardPage,
@@ -104,18 +134,71 @@ const SCORE_COMPONENTS: Array<{
   label: string;
   weight: number;
   color: string;
-  meta: string;
   /** O que o componente mede e como é normalizado para 0–100. */
   desc: string;
   /** Dimensão do framework SPACE / DORA a que o componente se ancora. */
   space: string;
 }> = [
-  { key: "entrega",      label: "Entrega",      weight: 35, color: "#10b981", meta: "meta: 50 unid.", desc: "Volume de PRs mergeadas e commits no período, normalizado contra a meta de referência. Mede saída de trabalho — não confunda com valor.", space: "SPACE · Activity / DORA · Deployment frequency" },
-  { key: "eficiencia",   label: "Eficiência",   weight: 25, color: "#8b5cf6", meta: "meta: 3 dias",   desc: "Velocidade do fluxo: lead time e cycle time. Quanto menor o tempo da ideia ao merge, maior a pontuação.", space: "SPACE · Efficiency & Flow / DORA · Lead time for changes" },
-  { key: "qualidade",    label: "Qualidade",    weight: 20, color: "#f59e0b", meta: "meta: 80% merge", desc: "Taxa de aceitação de PRs e proporção de correções (fix:). Reflete estabilidade e retrabalho.", space: "SPACE · Performance / DORA · Change failure rate" },
-  { key: "colaboracao",  label: "Colaboração",  weight: 10, color: "#06b6d4", meta: "meta: 8 reviews", desc: "Reviews fornecidas a outras pessoas. Valoriza o trabalho de apoio ao time, muitas vezes invisível.", space: "SPACE · Communication & Collaboration" },
-  { key: "consistencia", label: "Consistência", weight: 10, color: "#f97316", meta: "meta: 20 dias",  desc: "Regularidade da atividade ao longo do período (dias ativos), sem premiar excesso ou rajadas isoladas.", space: "SPACE · Activity (distribuição, não intensidade)" },
+  {
+    key: "entrega",
+    label: "Entrega",
+    weight: 35,
+    color: "#10b981",
+    desc: "Volume de PRs mergeadas e commits no período, normalizado contra a meta de referência. Mede saída de trabalho — não confunda com valor.",
+    space: "SPACE · Activity / DORA · Deployment frequency",
+  },
+  {
+    key: "eficiencia",
+    label: "Eficiência",
+    weight: 25,
+    color: "#8b5cf6",
+    desc: "Velocidade do fluxo: lead time e cycle time. Quanto menor o tempo da ideia ao merge, maior a pontuação.",
+    space: "SPACE · Efficiency & Flow / DORA · Lead time for changes",
+  },
+  {
+    key: "qualidade",
+    label: "Qualidade",
+    weight: 20,
+    color: "#f59e0b",
+    desc: "Taxa de aceitação de PRs e proporção de correções (fix:). Reflete estabilidade e retrabalho.",
+    space: "SPACE · Performance / DORA · Change failure rate",
+  },
+  {
+    key: "colaboracao",
+    label: "Colaboração",
+    weight: 10,
+    color: "#06b6d4",
+    desc: "Reviews fornecidas a outras pessoas. Valoriza o trabalho de apoio ao time, muitas vezes invisível.",
+    space: "SPACE · Communication & Collaboration",
+  },
+  {
+    key: "consistencia",
+    label: "Consistência",
+    weight: 10,
+    color: "#f97316",
+    desc: "Regularidade da atividade ao longo do período (dias ativos), sem premiar excesso ou rajadas isoladas.",
+    space: "SPACE · Activity (distribuição, não intensidade)",
+  },
 ];
+
+/** Rótulo da meta definida pelo usuário, por componente do score. */
+function metaLabel(
+  key: keyof Omit<ProductivityScoreResponse, "scoreFinal">,
+  goals: ProductivityGoals,
+): string {
+  switch (key) {
+    case "entrega":
+      return `meta: ${goals.metaEntrega} unid.`;
+    case "eficiencia":
+      return `meta: ${goals.metaCycleTime} dias`;
+    case "qualidade":
+      return `meta: ${Math.round(goals.metaQualidade * 100)}% merge`;
+    case "colaboracao":
+      return `meta: ${goals.metaReviews} reviews`;
+    case "consistencia":
+      return `meta: ${goals.metaDiasAtivos} dias`;
+  }
+}
 
 function getScoreLabel(s: number) {
   if (s >= 90) return "Excelente";
@@ -186,9 +269,13 @@ function ScoreMethodologyDialog() {
                 <div className="min-w-0">
                   <p className="text-foreground font-medium">
                     {comp.label}{" "}
-                    <span className="text-muted-foreground font-mono text-xs">· {comp.weight}%</span>
+                    <span className="text-muted-foreground font-mono text-xs">
+                      · {comp.weight}%
+                    </span>
                   </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{comp.desc}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                    {comp.desc}
+                  </p>
                   <p className="text-[10px] font-mono text-muted-foreground/60 mt-1 uppercase tracking-wide">
                     {comp.space}
                   </p>
@@ -206,10 +293,11 @@ function ScoreMethodologyDialog() {
               O modelo se ancora nos frameworks <span className="font-semibold">SPACE</span>{" "}
               (Satisfaction, Performance, Activity, Communication, Efficiency) e{" "}
               <span className="font-semibold">DORA</span>. Por isso combina dimensões de fluxo,
-              qualidade e colaboração — e <span className="text-foreground">evita deliberadamente</span>{" "}
-              reduzir produtividade a métricas de output puro, como linhas de código ou contagem
-              bruta de commits, que induzem a Goodhart's Law (“quando uma métrica vira meta, deixa
-              de ser uma boa métrica”).
+              qualidade e colaboração — e{" "}
+              <span className="text-foreground">evita deliberadamente</span> reduzir produtividade a
+              métricas de output puro, como linhas de código ou contagem bruta de commits, que
+              induzem a Goodhart's Law (“quando uma métrica vira meta, deixa de ser uma boa
+              métrica”).
             </p>
           </div>
 
@@ -235,8 +323,8 @@ function ScoreTrend({ trend, compareLabel }: { trend: number | null; compareLabe
   const cls = up
     ? "text-[oklch(0.82_0.18_145)] bg-[oklch(0.82_0.18_145)]/10 ring-[oklch(0.82_0.18_145)]/30"
     : down
-    ? "text-ruby-glow bg-ruby-glow/10 ring-ruby-glow/30"
-    : "text-foreground/50 bg-foreground/5 ring-foreground/10";
+      ? "text-ruby-glow bg-ruby-glow/10 ring-ruby-glow/30"
+      : "text-foreground/50 bg-foreground/5 ring-foreground/10";
   const verbal = up ? "subiu" : down ? "caiu" : "estável";
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
@@ -245,7 +333,8 @@ function ScoreTrend({ trend, compareLabel }: { trend: number | null; compareLabe
         aria-label={`Score ${verbal} ${Math.abs(trend)} pontos vs. ${compareLabel}`}
       >
         <Icon className="size-3 shrink-0" aria-hidden="true" />
-        {up ? "+" : ""}{trend} pts
+        {up ? "+" : ""}
+        {trend} pts
       </span>
       <span className="text-[10px] font-mono text-muted-foreground/70">vs. {compareLabel}</span>
     </div>
@@ -263,7 +352,9 @@ function ScoreSparkline({ series }: { series: ScoreTrendPoint[] }) {
         <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
           Evolução do score
         </p>
-        <span className="text-[10px] font-mono text-muted-foreground/50">janela móvel de 30 dias</span>
+        <span className="text-[10px] font-mono text-muted-foreground/50">
+          janela móvel de 30 dias
+        </span>
       </div>
       <div className="h-20">
         <ResponsiveContainer width="100%" height="100%">
@@ -275,9 +366,23 @@ function ScoreSparkline({ series }: { series: ScoreTrendPoint[] }) {
               </linearGradient>
             </defs>
             <YAxis domain={[0, 100]} hide />
-            <XAxis dataKey="date" stroke="var(--obsidian-400)" fontSize={9} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={24} />
+            <XAxis
+              dataKey="date"
+              stroke="var(--obsidian-400)"
+              fontSize={9}
+              tickLine={false}
+              axisLine={false}
+              interval="preserveStartEnd"
+              minTickGap={24}
+            />
             <Tooltip content={<ChartTooltip />} />
-            <Line type="monotone" dataKey="score" stroke="var(--emerald-glow)" strokeWidth={2} dot={false} />
+            <Line
+              type="monotone"
+              dataKey="score"
+              stroke="var(--emerald-glow)"
+              strokeWidth={2}
+              dot={false}
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -285,7 +390,25 @@ function ScoreSparkline({ series }: { series: ScoreTrendPoint[] }) {
   );
 }
 
-function ProductivityScorePanel({ data, loading, periodLabel, trend, compareLabel, series }: { data?: ProductivityScoreResponse; loading: boolean; periodLabel: string; trend: number | null; compareLabel: string; series?: ScoreTrendPoint[] }) {
+function ProductivityScorePanel({
+  data,
+  loading,
+  periodLabel,
+  trend,
+  compareLabel,
+  series,
+  goals,
+  onEditGoals,
+}: {
+  data?: ProductivityScoreResponse;
+  loading: boolean;
+  periodLabel: string;
+  trend: number | null;
+  compareLabel: string;
+  series?: ScoreTrendPoint[];
+  goals: ProductivityGoals;
+  onEditGoals: () => void;
+}) {
   const r = 52;
   const circ = 2 * Math.PI * r;
   const score = data?.scoreFinal ?? 0;
@@ -302,7 +425,17 @@ function ProductivityScorePanel({ data, loading, periodLabel, trend, compareLabe
         </div>
         <div className="flex items-center gap-3">
           {!loading && <ScoreTrend trend={trend} compareLabel={compareLabel} />}
-          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">{periodLabel}</span>
+          <button
+            type="button"
+            onClick={onEditGoals}
+            className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30 rounded px-1 py-0.5"
+          >
+            <Target className="size-3" />
+            Ajustar metas
+          </button>
+          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+            {periodLabel}
+          </span>
         </div>
       </div>
 
@@ -322,10 +455,25 @@ function ProductivityScorePanel({ data, loading, periodLabel, trend, compareLabe
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 md:gap-10">
           {/* Donut ring */}
           <div className="relative w-36 h-36 flex-shrink-0">
-            <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90" style={{ overflow: "visible" }} aria-hidden="true">
-              <circle cx="60" cy="60" r={r} fill="none" stroke="oklch(1 0 0 / 0.06)" strokeWidth="9" />
+            <svg
+              viewBox="0 0 120 120"
+              className="w-full h-full -rotate-90"
+              style={{ overflow: "visible" }}
+              aria-hidden="true"
+            >
               <circle
-                cx="60" cy="60" r={r} fill="none"
+                cx="60"
+                cy="60"
+                r={r}
+                fill="none"
+                stroke="oklch(1 0 0 / 0.06)"
+                strokeWidth="9"
+              />
+              <circle
+                cx="60"
+                cy="60"
+                r={r}
+                fill="none"
                 stroke={color}
                 strokeWidth="9"
                 strokeLinecap="round"
@@ -338,7 +486,9 @@ function ProductivityScorePanel({ data, loading, periodLabel, trend, compareLabe
               <span className="text-4xl font-bold font-mono leading-none" style={{ color }}>
                 {score.toFixed(0)}
               </span>
-              <span className="text-[10px] font-mono text-muted-foreground tracking-widest mt-0.5">/100</span>
+              <span className="text-[10px] font-mono text-muted-foreground tracking-widest mt-0.5">
+                /100
+              </span>
               <span
                 className="text-[10px] font-mono uppercase tracking-widest mt-2 px-2 py-0.5 rounded-full border"
                 style={{ color, borderColor: `${color}40` }}
@@ -366,7 +516,7 @@ function ProductivityScorePanel({ data, loading, periodLabel, trend, compareLabe
                       <span className="text-muted-foreground/50">{comp.weight}%</span>
                     </div>
                     <div className="flex items-center gap-2 text-[11px] font-mono">
-                      <span className="text-muted-foreground/50">{comp.meta}</span>
+                      <span className="text-muted-foreground/50">{metaLabel(comp.key, goals)}</span>
                       <span className="tabular-nums font-bold" style={{ color: comp.color }}>
                         {clamped.toFixed(0)}
                         <span className="text-muted-foreground font-normal">/100</span>
@@ -409,8 +559,8 @@ function AcceptanceGauge({ rate }: { rate: number }) {
     clamped >= 80
       ? { color: "var(--emerald-glow)", label: "saudável" }
       : clamped >= 50
-      ? { color: "var(--amber-glow)", label: "moderada" }
-      : { color: "var(--ruby-glow)", label: "baixa" };
+        ? { color: "var(--amber-glow)", label: "moderada" }
+        : { color: "var(--ruby-glow)", label: "baixa" };
   return (
     <div>
       <div
@@ -423,10 +573,17 @@ function AcceptanceGauge({ rate }: { rate: number }) {
       >
         <div
           className="h-full rounded-full transition-all duration-700 ease-out"
-          style={{ width: `${clamped}%`, background: band.color, boxShadow: `0 0 6px ${band.color}` }}
+          style={{
+            width: `${clamped}%`,
+            background: band.color,
+            boxShadow: `0 0 6px ${band.color}`,
+          }}
         />
       </div>
-      <p className="mt-1 text-[10px] font-mono uppercase tracking-wide" style={{ color: band.color }}>
+      <p
+        className="mt-1 text-[10px] font-mono uppercase tracking-wide"
+        style={{ color: band.color }}
+      >
         {band.label}
       </p>
     </div>
@@ -440,10 +597,25 @@ function DashboardPage() {
   const { from, to } = period;
   const prev = previousRange(period);
 
-  const params = { repoId: repo?.id ?? 0, authorLogin: user?.login ?? "", from, to };
-  const prevParams = { repoId: repo?.id ?? 0, authorLogin: user?.login ?? "", from: prev.from, to: prev.to };
+  // Metas do score: definidas ao entrar no dashboard e redefinidas a cada troca de período.
+  const periodKey = `${from}_${to}`;
+  const { goals, ready: goalsReady, apply: applyGoals } = useGoals(periodKey);
+  const [editingGoals, setEditingGoals] = useState(false);
 
-  const { data: overview, isLoading: loadingOverview, isError: errorOverview, refetch: refetchOverview } = useQuery({
+  const params = { repoId: repo?.id ?? 0, authorLogin: user?.login ?? "", from, to };
+  const prevParams = {
+    repoId: repo?.id ?? 0,
+    authorLogin: user?.login ?? "",
+    from: prev.from,
+    to: prev.to,
+  };
+
+  const {
+    data: overview,
+    isLoading: loadingOverview,
+    isError: errorOverview,
+    refetch: refetchOverview,
+  } = useQuery({
     queryKey: ["overview", params],
     queryFn: () => getOverviewMetrics(params),
     enabled: !!repo && !!user,
@@ -457,7 +629,13 @@ function DashboardPage() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const { data: flow, isLoading: loadingFlow, isError: errorFlow, refetch: refetchFlow, dataUpdatedAt: flowUpdatedAt } = useQuery({
+  const {
+    data: flow,
+    isLoading: loadingFlow,
+    isError: errorFlow,
+    refetch: refetchFlow,
+    dataUpdatedAt: flowUpdatedAt,
+  } = useQuery({
     queryKey: ["flow", params],
     queryFn: () => getFlowMetrics(params),
     enabled: !!repo && !!user,
@@ -478,19 +656,26 @@ function DashboardPage() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const { data: scoreData, isLoading: loadingScore, isError: errorScore, refetch: refetchScore } = useQuery({
-    queryKey: ["productivityScore", user?.login, from, to],
-    queryFn: () => getProductivityScore(user!.login, from, to),
-    enabled: !!user,
+  // O score só é calculado depois que o usuário define as metas do período (goalsReady).
+  // As metas entram na queryKey: reajustá-las recomputa o indicador.
+  const {
+    data: scoreData,
+    isLoading: loadingScore,
+    isError: errorScore,
+    refetch: refetchScore,
+  } = useQuery({
+    queryKey: ["productivityScore", user?.login, from, to, goals],
+    queryFn: () => getProductivityScore(user!.login, from, to, goals),
+    enabled: !!user && goalsReady,
     staleTime: 1000 * 60 * 5,
   });
 
   // Score do período anterior — base para a tendência (a evolução importa mais que o valor absoluto).
   // Tendência período-vs-período; uma série temporal completa exigiria um endpoint dedicado no backend.
   const { data: prevScoreData } = useQuery({
-    queryKey: ["productivityScore", user?.login, prev.from, prev.to],
-    queryFn: () => getProductivityScore(user!.login, prev.from, prev.to),
-    enabled: !!user,
+    queryKey: ["productivityScore", user?.login, prev.from, prev.to, goals],
+    queryFn: () => getProductivityScore(user!.login, prev.from, prev.to, goals),
+    enabled: !!user && goalsReady,
     staleTime: 1000 * 60 * 5,
   });
 
@@ -499,40 +684,42 @@ function DashboardPage() {
 
   // Série temporal do score (janela móvel de 30d) — evolução ao longo do período visualizado.
   const { data: scoreSeries } = useQuery({
-    queryKey: ["productivityScoreTrend", user?.login, from, to],
-    queryFn: () => getProductivityScoreTrend(user!.login, from, to),
-    enabled: !!user,
+    queryKey: ["productivityScoreTrend", user?.login, from, to, goals],
+    queryFn: () => getProductivityScoreTrend(user!.login, from, to, goals),
+    enabled: !!user && goalsReady,
     staleTime: 1000 * 60 * 5,
   });
 
   const raw = overview?.individual;
   const ind = {
-    acceptanceRate: ((raw?.acceptanceRate ?? 0) * 100),
+    acceptanceRate: (raw?.acceptanceRate ?? 0) * 100,
     prsMerged: raw?.prsMerged ?? 0,
     prsOpened: raw?.prsOpened ?? 0,
     commits: raw?.commits ?? 0,
   };
-  const leadTimeDays = flow ? ((flow.individual.leadTimeHours ?? 0) / 24) : 0;
+  const leadTimeDays = flow ? (flow.individual.leadTimeHours ?? 0) / 24 : 0;
 
   // Deltas reais contra o período imediatamente anterior (mesma duração).
   const pRaw = prevOverview?.individual;
-  const dCommits = (raw && pRaw) ? computeDeltaPct(raw.commits ?? 0, pRaw.commits ?? 0) : null;
-  const dPrsMerged = (raw && pRaw) ? computeDeltaPct(raw.prsMerged ?? 0, pRaw.prsMerged ?? 0) : null;
-  const dAcceptancePp = (raw && pRaw) ? computeDeltaPp(raw.acceptanceRate ?? 0, pRaw.acceptanceRate ?? 0) : null;
+  const dCommits = raw && pRaw ? computeDeltaPct(raw.commits ?? 0, pRaw.commits ?? 0) : null;
+  const dPrsMerged = raw && pRaw ? computeDeltaPct(raw.prsMerged ?? 0, pRaw.prsMerged ?? 0) : null;
+  const dAcceptancePp =
+    raw && pRaw ? computeDeltaPp(raw.acceptanceRate ?? 0, pRaw.acceptanceRate ?? 0) : null;
   const dLeadTime =
-    prevFlow && flow ? computeDeltaPct(flow.individual.leadTimeHours ?? 0, prevFlow.individual.leadTimeHours ?? 0) : null;
+    prevFlow && flow
+      ? computeDeltaPct(flow.individual.leadTimeHours ?? 0, prevFlow.individual.leadTimeHours ?? 0)
+      : null;
 
   const compareLabel = PRESET_COMPARE[period.preset];
 
-  const activitySeries = (overview?.activityOverTime ?? [])
-    .map((p) => ({
-      day: new Date(p.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
-      date: p.date,
-      commits: p.commits,
-      prs: p.prs,
-      teamCommits: p.teamCommits,
-      teamPrs: p.teamPrs,
-    }));
+  const activitySeries = (overview?.activityOverTime ?? []).map((p) => ({
+    day: new Date(p.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+    date: p.date,
+    commits: p.commits,
+    prs: p.prs,
+    teamCommits: p.teamCommits,
+    teamPrs: p.teamPrs,
+  }));
   const xAxisInterval = Math.max(0, Math.ceil(activitySeries.length / 8) - 1);
 
   const repoFullName = repo?.fullName ?? "";
@@ -541,16 +728,21 @@ function DashboardPage() {
     const href = !repoFullName
       ? null
       : isCommit && item.sha
-      ? `https://github.com/${repoFullName}/commit/${item.sha}`
-      : !isCommit && item.number != null
-      ? `https://github.com/${repoFullName}/pull/${item.number}`
-      : null;
+        ? `https://github.com/${repoFullName}/commit/${item.sha}`
+        : !isCommit && item.number != null
+          ? `https://github.com/${repoFullName}/pull/${item.number}`
+          : null;
     return {
       type: isCommit ? "commit" : "pr",
       title: item.title,
       repo: repo?.name ?? "",
       time: formatRelativeTime(item.date),
-      status: item.state === "closed" || item.state === "merged" ? "merged" : item.state === "open" ? "open" : "ok",
+      status:
+        item.state === "closed" || item.state === "merged"
+          ? "merged"
+          : item.state === "open"
+            ? "open"
+            : "ok",
       additions: item.additions,
       deletions: item.deletions,
       href,
@@ -559,190 +751,322 @@ function DashboardPage() {
 
   return (
     <div className="space-y-6 md:space-y-8">
+      {/* Metas do score — modal bloqueante ao entrar e a cada troca de período */}
+      <GoalsDialog
+        open={!goalsReady || editingGoals}
+        blocking={!goalsReady}
+        initial={goals}
+        periodLabel={PRESET_LABEL[period.preset]}
+        onApply={(g) => {
+          applyGoals(g);
+          setEditingGoals(false);
+        }}
+        onCancel={() => setEditingGoals(false)}
+      />
+
       {/* Productivity Score */}
       {errorScore ? (
         <QueryError onRetry={refetchScore} className="h-40" />
       ) : (
-        <ProductivityScorePanel data={scoreData} loading={loadingScore} periodLabel={PRESET_LABEL[period.preset]} trend={scoreTrend} compareLabel={compareLabel} series={scoreSeries} />
+        <ProductivityScorePanel
+          data={scoreData}
+          loading={loadingScore || !goalsReady}
+          periodLabel={PRESET_LABEL[period.preset]}
+          trend={scoreTrend}
+          compareLabel={compareLabel}
+          series={scoreSeries}
+          goals={goals}
+          onEditGoals={() => setEditingGoals(true)}
+        />
       )}
 
       {/* KPIs */}
       {loadingOverview ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-32 rounded-2xl bg-obsidian-900/40 border border-border animate-pulse" />
+            <div
+              key={i}
+              className="h-32 rounded-2xl bg-obsidian-900/40 border border-border animate-pulse"
+            />
           ))}
         </div>
       ) : errorOverview ? (
         <QueryError onRetry={refetchOverview} className="h-32" />
       ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <KpiCard
-          label="Commits"
-          value={`${ind.commits}`}
-          delta={dCommits !== null ? { value: dCommits, neutral: true, compareLabel } : undefined}
-          hint={`Equipe: ${overview?.team.commits ?? 0}`}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <KpiCard
+            label="Commits"
+            value={`${ind.commits}`}
+            delta={dCommits !== null ? { value: dCommits, neutral: true, compareLabel } : undefined}
+            hint={`Equipe: ${overview?.team.commits ?? 0}`}
+          />
 
-        <KpiCard
-          label="PRs Mergeadas"
-          value={`${ind.prsMerged}`}
-          delta={dPrsMerged !== null ? { value: dPrsMerged, neutral: true, compareLabel } : undefined}
-          hint={`${ind.prsOpened} abertas no período`}
-        />
+          <KpiCard
+            label="PRs Mergeadas"
+            value={`${ind.prsMerged}`}
+            delta={
+              dPrsMerged !== null ? { value: dPrsMerged, neutral: true, compareLabel } : undefined
+            }
+            hint={`${ind.prsOpened} abertas no período`}
+          />
 
-        <KpiCard
-          label="Taxa de Aceitação"
-          value={`${ind.acceptanceRate.toFixed(1)}%`}
-          delta={dAcceptancePp !== null ? { value: dAcceptancePp, suffix: " pts", compareLabel } : undefined}
-          hint={`${ind.prsMerged} PRs mergeadas`}
-        >
-          <AcceptanceGauge rate={ind.acceptanceRate} />
-        </KpiCard>
+          <KpiCard
+            label="Taxa de Aceitação"
+            value={`${ind.acceptanceRate.toFixed(1)}%`}
+            delta={
+              dAcceptancePp !== null
+                ? { value: dAcceptancePp, suffix: " pts", compareLabel }
+                : undefined
+            }
+            hint={`${ind.prsMerged} PRs mergeadas`}
+          >
+            <AcceptanceGauge rate={ind.acceptanceRate} />
+          </KpiCard>
 
-        <KpiCard
-          label="Tempo de Resolução de Issue"
-          value={`${leadTimeDays.toFixed(1)}d`}
-          delta={dLeadTime !== null ? { value: dLeadTime, invert: true, compareLabel } : undefined}
-        />
-      </div>
+          <KpiCard
+            label="Tempo de Resolução de Issue"
+            value={`${leadTimeDays.toFixed(1)}d`}
+            delta={
+              dLeadTime !== null ? { value: dLeadTime, invert: true, compareLabel } : undefined
+            }
+          />
+        </div>
       )}
 
       {/* Charts — carregam independente dos KPIs; mostram estado vazio se dados ainda não chegaram */}
-      {(errorOverview && errorFlow) ? (
-        <QueryError onRetry={() => { void refetchOverview(); void refetchFlow(); }} className="h-72" />
+      {errorOverview && errorFlow ? (
+        <QueryError
+          onRetry={() => {
+            void refetchOverview();
+            void refetchFlow();
+          }}
+          className="h-72"
+        />
       ) : loadingOverview && loadingFlow ? (
         <div className="flex flex-col gap-4 md:gap-6">
           <div className="h-80 rounded-2xl bg-obsidian-900/40 border border-border animate-pulse" />
           <div className="h-80 rounded-2xl bg-obsidian-900/40 border border-border animate-pulse" />
         </div>
       ) : (
-      <div className="flex flex-col gap-4 md:gap-6">
-        <GlassCard className="p-4 md:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-2 mb-4 md:mb-6">
-            <div>
-              <h3 className="text-base font-semibold text-foreground">Velocidade de Entrega</h3>
-              <p className="text-xs text-muted-foreground">Commits e PRs no período</p>
-            </div>
-            <div className="flex gap-4">
-              <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest">
-                <span className="size-2 rounded-full bg-emerald-glow shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                Commits
+        <div className="flex flex-col gap-4 md:gap-6">
+          <GlassCard className="p-4 md:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-2 mb-4 md:mb-6">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Velocidade de Entrega</h3>
+                <p className="text-xs text-muted-foreground">Commits e PRs no período</p>
               </div>
-              <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest">
-                <span className="size-2 rounded-full bg-violet-glow shadow-[0_0_8px_rgba(139,92,246,0.8)]" />
-                PRs
+              <div className="flex gap-4">
+                <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest">
+                  <span className="size-2 rounded-full bg-emerald-glow shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                  Commits
+                </div>
+                <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest">
+                  <span className="size-2 rounded-full bg-violet-glow shadow-[0_0_8px_rgba(139,92,246,0.8)]" />
+                  PRs
+                </div>
               </div>
             </div>
-          </div>
-          <div className="h-52 md:h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={activitySeries}>
-                <defs>
-                  <linearGradient id="gradCommits" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--emerald-glow)" stopOpacity={0.5} />
-                    <stop offset="100%" stopColor="var(--emerald-glow)" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="gradPrs" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--violet-glow)" stopOpacity={0.5} />
-                    <stop offset="100%" stopColor="var(--violet-glow)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.05)" vertical={false} />
-                <XAxis dataKey="day" stroke="var(--obsidian-400)" fontSize={10} tickLine={false} axisLine={false} interval={xAxisInterval} />
-                <YAxis stroke="var(--obsidian-400)" fontSize={10} tickLine={false} axisLine={false} />
-                <Tooltip content={<ChartTooltip />} />
-                <Area type="monotone" dataKey="commits" stroke="var(--emerald-glow)" strokeWidth={2} fill="url(#gradCommits)" />
-                <Area type="monotone" dataKey="prs" stroke="var(--violet-glow)" strokeWidth={2} fill="url(#gradPrs)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </GlassCard>
+            <div className="h-52 md:h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={activitySeries}>
+                  <defs>
+                    <linearGradient id="gradCommits" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--emerald-glow)" stopOpacity={0.5} />
+                      <stop offset="100%" stopColor="var(--emerald-glow)" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradPrs" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--violet-glow)" stopOpacity={0.5} />
+                      <stop offset="100%" stopColor="var(--violet-glow)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="oklch(1 0 0 / 0.05)"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="day"
+                    stroke="var(--obsidian-400)"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                    interval={xAxisInterval}
+                  />
+                  <YAxis
+                    stroke="var(--obsidian-400)"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="commits"
+                    stroke="var(--emerald-glow)"
+                    strokeWidth={2}
+                    fill="url(#gradCommits)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="prs"
+                    stroke="var(--violet-glow)"
+                    strokeWidth={2}
+                    fill="url(#gradPrs)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </GlassCard>
 
-        <GlassCard className="p-4 md:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-2 mb-4 md:mb-6">
-            <div>
-              <h3 className="text-base font-semibold text-foreground">Você vs Equipe</h3>
-              <p className="text-xs text-muted-foreground">Commits diários comparados</p>
+          <GlassCard className="p-4 md:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-2 mb-4 md:mb-6">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Você vs Equipe</h3>
+                <p className="text-xs text-muted-foreground">Commits diários comparados</p>
+              </div>
+              <div className="flex gap-4 text-[10px] font-mono uppercase tracking-widest">
+                <div className="flex items-center gap-2">
+                  <span className="size-2 rounded-full bg-emerald-glow shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                  Você
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="size-2 rounded-full bg-obsidian-400" />
+                  Equipe
+                </div>
+              </div>
             </div>
-            <div className="flex gap-4 text-[10px] font-mono uppercase tracking-widest">
-              <div className="flex items-center gap-2"><span className="size-2 rounded-full bg-emerald-glow shadow-[0_0_8px_rgba(16,185,129,0.8)]" />Você</div>
-              <div className="flex items-center gap-2"><span className="size-2 rounded-full bg-obsidian-400" />Equipe</div>
+            <div className="h-52 md:h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={activitySeries}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="oklch(1 0 0 / 0.05)"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="day"
+                    stroke="var(--obsidian-400)"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                    interval={xAxisInterval}
+                  />
+                  <YAxis
+                    stroke="var(--obsidian-400)"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Line
+                    type="monotone"
+                    dataKey="commits"
+                    stroke="var(--emerald-glow)"
+                    strokeWidth={2.5}
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="teamCommits"
+                    stroke="var(--obsidian-400)"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-          </div>
-          <div className="h-52 md:h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={activitySeries}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.05)" vertical={false} />
-                <XAxis dataKey="day" stroke="var(--obsidian-400)" fontSize={10} tickLine={false} axisLine={false} interval={xAxisInterval} />
-                <YAxis stroke="var(--obsidian-400)" fontSize={10} tickLine={false} axisLine={false} />
-                <Tooltip content={<ChartTooltip />} />
-                <Line type="monotone" dataKey="commits" stroke="var(--emerald-glow)" strokeWidth={2.5} dot={false} />
-                <Line type="monotone" dataKey="teamCommits" stroke="var(--obsidian-400)" strokeWidth={2} strokeDasharray="4 4" dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </GlassCard>
-      </div>
+          </GlassCard>
+        </div>
       )}
 
       {/* Recent Activity */}
       <GlassCard className="overflow-hidden">
-          <div className="p-6 border-b border-border">
-            <h3 className="text-base font-semibold text-foreground">Atividade Recente</h3>
+        <div className="p-6 border-b border-border">
+          <h3 className="text-base font-semibold text-foreground">Atividade Recente</h3>
+        </div>
+        {errorFlow ? (
+          <div className="p-6">
+            <QueryError onRetry={refetchFlow} className="h-28" />
           </div>
-          {errorFlow ? (
-            <div className="p-6"><QueryError onRetry={refetchFlow} className="h-28" /></div>
-          ) : recentActivity.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">Sem atividade no período.</div>
-          ) : (
-            <ul className="divide-y divide-border">
-              {recentActivity.map((a, i) => {
-                const Icon = a.type === "commit" ? GitCommit : a.type === "pr" ? GitPullRequest : CheckCircle2;
-                const iconColor = a.type === "commit" ? "text-emerald-glow" : "text-violet-glow";
-                const iconBorder = a.type === "commit" ? "border-emerald-glow/30 bg-emerald-glow/5" : "border-violet-glow/30 bg-violet-glow/5";
-                const RowTag = a.href ? "a" : "div";
-                const rowProps = a.href
-                  ? { href: a.href, target: "_blank", rel: "noreferrer", "aria-label": `Abrir no GitHub: ${a.title}` }
-                  : {};
-                return (
-                  <li key={i}>
-                    <RowTag
-                      {...rowProps}
-                      className={cn(
-                        "px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 md:gap-4 transition-colors",
-                        a.href ? "hover:bg-obsidian-800/40 cursor-pointer group" : "hover:bg-obsidian-800/20"
-                      )}
+        ) : recentActivity.length === 0 ? (
+          <div className="p-8 text-center text-sm text-muted-foreground">
+            Sem atividade no período.
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {recentActivity.map((a, i) => {
+              const Icon =
+                a.type === "commit" ? GitCommit : a.type === "pr" ? GitPullRequest : CheckCircle2;
+              const iconColor = a.type === "commit" ? "text-emerald-glow" : "text-violet-glow";
+              const iconBorder =
+                a.type === "commit"
+                  ? "border-emerald-glow/30 bg-emerald-glow/5"
+                  : "border-violet-glow/30 bg-violet-glow/5";
+              const RowTag = a.href ? "a" : "div";
+              const rowProps = a.href
+                ? {
+                    href: a.href,
+                    target: "_blank",
+                    rel: "noreferrer",
+                    "aria-label": `Abrir no GitHub: ${a.title}`,
+                  }
+                : {};
+              return (
+                <li key={i}>
+                  <RowTag
+                    {...rowProps}
+                    className={cn(
+                      "px-4 py-3 md:px-6 md:py-4 flex items-center gap-3 md:gap-4 transition-colors",
+                      a.href
+                        ? "hover:bg-obsidian-800/40 cursor-pointer group"
+                        : "hover:bg-obsidian-800/20",
+                    )}
+                  >
+                    <div
+                      className={`size-9 grid place-items-center rounded-lg border bg-obsidian-900/60 shrink-0 ${iconBorder}`}
                     >
-                      <div className={`size-9 grid place-items-center rounded-lg border bg-obsidian-900/60 shrink-0 ${iconBorder}`}>
-                        <Icon className={`size-4 ${iconColor}`} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground truncate group-hover:text-emerald-glow transition-colors">{a.title}</p>
-                        <p className="text-[11px] text-muted-foreground font-mono">{a.repo} • {a.time}</p>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {(a.additions != null && a.additions > 0) && (
-                          <span aria-label={`${a.additions} adições`} className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-400">
-                            +{a.additions}
-                          </span>
-                        )}
-                        {(a.deletions != null && a.deletions > 0) && (
-                          <span aria-label={`${a.deletions} deleções`} className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-red-500/40 bg-red-500/10 text-red-400">
-                            -{a.deletions}
-                          </span>
-                        )}
-                        {a.href && (
-                          <ArrowUpRight className="size-3.5 text-muted-foreground/40 group-hover:text-emerald-glow transition-colors" aria-hidden="true" />
-                        )}
-                      </div>
-                    </RowTag>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </GlassCard>
+                      <Icon className={`size-4 ${iconColor}`} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate group-hover:text-emerald-glow transition-colors">
+                        {a.title}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground font-mono">
+                        {a.repo} • {a.time}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {a.additions != null && a.additions > 0 && (
+                        <span
+                          aria-label={`${a.additions} adições`}
+                          className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                        >
+                          +{a.additions}
+                        </span>
+                      )}
+                      {a.deletions != null && a.deletions > 0 && (
+                        <span
+                          aria-label={`${a.deletions} deleções`}
+                          className="text-[11px] font-mono font-bold px-2 py-0.5 rounded border border-red-500/40 bg-red-500/10 text-red-400"
+                        >
+                          -{a.deletions}
+                        </span>
+                      )}
+                      {a.href && (
+                        <ArrowUpRight
+                          className="size-3.5 text-muted-foreground/40 group-hover:text-emerald-glow transition-colors"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </div>
+                  </RowTag>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </GlassCard>
     </div>
   );
 }

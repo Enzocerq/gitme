@@ -28,7 +28,7 @@ Além do fluxo real via OAuth GitHub, a aplicação possui um **modo demonstraç
 |------|-----------|
 | `/login` | Autenticação via GitHub OAuth ou entrada em modo demonstração |
 | `/select-repos` | Seleção de repositórios para análise (repos do GitHub ou repos de demo) |
-| `/dashboard` | Visão geral: score de produtividade (com **tendência** vs. período anterior e **sparkline de evolução**), PRs, lead time, taxa de aceitação. Atividade recente com **drill-down** para o commit/PR no GitHub |
+| `/dashboard` | Visão geral: score de produtividade (com **metas definidas pelo usuário** por período, **tendência** vs. período anterior e **sparkline de evolução**), PRs, lead time, taxa de aceitação. Atividade recente com **drill-down** para o commit/PR no GitHub |
 | `/activity` | Velocidade de desenvolvimento: cycle time e lead time com **benchmark DORA**, tempo em review |
 | `/repositories` | Análise por repositório: commits, PRs, distribuição de esforço |
 | `/collaboration` | Métricas de time (**"Equipe"**): comparação unificada você vs. grupo com todas as métricas (commits, PRs, cycle time, lead time, TCM, tempo em revisão) em barras pareadas por escala, distribuição de reviews com linha de **mediana** |
@@ -45,7 +45,7 @@ Além do fluxo real via OAuth GitHub, a aplicação possui um **modo demonstraç
 
 ### KPIs Monitorados
 
-- **Productivity Score** — índice composto 0–100, com **modal de metodologia** (fórmula, pesos e ancoragem em SPACE/DORA) acessível pelo botão "Metodologia", **badge de tendência** período-vs-período e **sparkline de evolução** (série temporal via endpoint `/api/productivity-score/{login}/trend`, janela móvel de 30 dias por ponto) — a evolução importa mais que o valor absoluto isolado
+- **Productivity Score** — índice composto 0–100, com **metas definidas pelo próprio usuário**: ao entrar no dashboard abre-se um **modal bloqueante** para definir as 5 metas (Entrega, Eficiência, Qualidade, Colaboração, Consistência); ao **trocar o período** as metas precisam ser **redefinidas** (uma meta calibrada para 30 dias não vale para 7), e o botão "Ajustar metas" permite reabrir o modal a qualquer momento. Inclui ainda **modal de metodologia** (fórmula, pesos e ancoragem em SPACE/DORA), **badge de tendência** período-vs-período e **sparkline de evolução** (série temporal via endpoint `/api/productivity-score/{login}/trend`, janela móvel de 30 dias por ponto) — a evolução importa mais que o valor absoluto isolado
 - **PRs Merged** — taxa de aceitação de pull requests, exibida com **mini-gauge** colorido por faixa (baixa/moderada/saudável)
 - **Lead Time** — tempo do primeiro commit até o merge, com rótulo de **benchmark DORA** (elite < 1 dia, alto < 1 semana, médio < 1 mês)
 - **Cycle Time** — tempo de abertura até o fechamento do PR, com **benchmark DORA** (elite < 24h, bom < 1 semana)
@@ -69,6 +69,7 @@ O projeto adota deliberadamente uma postura de **inteligência de engenharia com
 - **Padrões de horário ≠ alertas.** Commits noturnos e de fim de semana **não** são tratados como *warnings*. Eles aparecem no painel **Ritmo de Trabalho** (em `/insights`) como dado descritivo neutro, com aviso explícito de que "trabalhar fora do horário comercial não é melhor nem pior" e que o dado serve à reflexão pessoal, nunca à avaliação. Os diagnósticos automáticos restantes focam apenas no **conteúdo** do trabalho (tipo de commit, adoção de Conventional Commits, taxa de correções).
 - **TCM contextualizado.** O Tamanho de Commit Médio (linhas/commit) exibe tooltip esclarecendo que é estatística descritiva, não medida de produtividade — LOC foi desacreditado como proxy de valor entregue desde os anos 1970. Sem "meta".
 - **Score transparente.** O Score de Produtividade expõe sua metodologia completa via modal ("Metodologia"): fórmula, peso e descrição de cada um dos cinco componentes, dimensão SPACE/DORA correspondente, e limitações (depende dos dados do GitHub, não captura mentoria/design/pesquisa, não compara pessoas com contextos diferentes). Transparência da fórmula = confiança no indicador.
+- **Metas do próprio usuário.** As metas que normalizam cada componente do Score **não são impostas pelo sistema**: o usuário as define ao entrar no dashboard e as redefine a cada troca de período. O Score deixa de ser critério absoluto e vira referência de autoconhecimento ajustada ao contexto individual — coerente com o propósito de autoavaliação (e não comparação) da ferramenta.
 
 ### Modo Demonstração
 
@@ -182,6 +183,7 @@ src/
 │   ├── ui/                  # Componentes shadcn/ui
 │   ├── app-shell.tsx        # Layout principal com sidebar (switcher de repo), breadcrumb do repo ativo + barra de loading global na navegação, seletor de período no header
 │   ├── glass-card.tsx       # Card glassmórfico reutilizável
+│   ├── goals-dialog.tsx     # Modal de definição das metas do Score (bloqueante ao entrar no dashboard e a cada troca de período)
 │   ├── kpi-card.tsx         # Card de métrica com delta vs. período anterior + tooltip de contexto opcional (prop `info`) + aria-label no badge de variação
 │   ├── period-picker.tsx    # Seletor de período global (presets + intervalo personalizado)
 │   ├── query-state.tsx      # `QueryError`: estado de erro com retry reutilizável entre telas
@@ -199,6 +201,7 @@ src/
 │       └── insights.tsx     # Diagnósticos de conteúdo, heatmap e painel Ritmo de Trabalho
 ├── hooks/
 │   ├── use-active-repo.tsx  # Context global do repositório ativo (switcher entre repos selecionados)
+│   ├── use-goals.ts         # Metas do Score por período (exige (re)definição ao entrar e ao trocar o período; não persistidas)
 │   ├── use-period.tsx       # Context global do período de análise (persiste em localStorage)
 │   ├── use-theme.tsx        # Toggle de tema claro/escuro
 │   └── use-mobile.tsx       # Detecção de viewport mobile

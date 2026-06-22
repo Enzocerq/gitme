@@ -1,6 +1,7 @@
 import { getToken } from "./auth";
 
-const BASE_URL = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "http://localhost:8081";
+const BASE_URL =
+  (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "http://localhost:8081";
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const token = getToken();
@@ -144,10 +145,32 @@ export async function getOverviewMetrics(params: MetricParams): Promise<Overview
 // Flow
 export interface FlowMetrics {
   period: { from: string; to: string };
-  individual: { cycleTimeHours: number; leadTimeHours: number; tcm: number; timeInReviewHours: number; activeDays: number };
-  team: { cycleTimeHours: number; leadTimeHours: number; tcm: number; timeInReviewHours: number; activeDays: number };
+  individual: {
+    cycleTimeHours: number;
+    leadTimeHours: number;
+    tcm: number;
+    timeInReviewHours: number;
+    activeDays: number;
+  };
+  team: {
+    cycleTimeHours: number;
+    leadTimeHours: number;
+    tcm: number;
+    timeInReviewHours: number;
+    activeDays: number;
+  };
   timeInReviewSeries: Array<{ date: string; avgHours: number }>;
-  recent: Array<{ kind: string; sha: string | null; number: number | null; title: string; state: string; date: string; authorLogin: string; additions?: number | null; deletions?: number | null }>;
+  recent: Array<{
+    kind: string;
+    sha: string | null;
+    number: number | null;
+    title: string;
+    state: string;
+    date: string;
+    authorLogin: string;
+    additions?: number | null;
+    deletions?: number | null;
+  }>;
 }
 
 export async function getFlowMetrics(params: MetricParams): Promise<FlowMetrics> {
@@ -157,11 +180,23 @@ export async function getFlowMetrics(params: MetricParams): Promise<FlowMetrics>
 // Repos
 export interface RepoMetrics {
   period: { from: string; to: string };
-  repos: Array<{ repoId: number; name: string; totalCommits: number; userCommits: number; participation: number; totalPrs: number; userPrs: number }>;
+  repos: Array<{
+    repoId: number;
+    name: string;
+    totalCommits: number;
+    userCommits: number;
+    participation: number;
+    totalPrs: number;
+    userPrs: number;
+  }>;
 }
 
 export async function getRepoMetrics(params: RepoOnlyParams): Promise<RepoMetrics> {
-  const qs = new URLSearchParams({ authorLogin: params.authorLogin, from: params.from, to: params.to }).toString();
+  const qs = new URLSearchParams({
+    authorLogin: params.authorLogin,
+    from: params.from,
+    to: params.to,
+  }).toString();
   return apiFetch<RepoMetrics>(`/api/poc/metrics/repos?${qs}`);
 }
 
@@ -183,8 +218,26 @@ export async function getCollaborationMetrics(params: MetricParams): Promise<Col
 // Insights
 export interface InsightsMetrics {
   period: { from: string; to: string };
-  individual: { commitClassification: { feat: number; fix: number; other: number; totalConventional: number; featRatio: number; fixRatio: number } };
-  team: { commitClassification: { feat: number; fix: number; other: number; totalConventional: number; featRatio: number; fixRatio: number } };
+  individual: {
+    commitClassification: {
+      feat: number;
+      fix: number;
+      other: number;
+      totalConventional: number;
+      featRatio: number;
+      fixRatio: number;
+    };
+  };
+  team: {
+    commitClassification: {
+      feat: number;
+      fix: number;
+      other: number;
+      totalConventional: number;
+      featRatio: number;
+      fixRatio: number;
+    };
+  };
   productivityHeatmap: number[][];
 }
 
@@ -202,12 +255,53 @@ export interface ProductivityScoreResponse {
   consistencia: number;
 }
 
-export async function getProductivityScore(authorLogin: string, from: string, to: string): Promise<ProductivityScoreResponse> {
+/**
+ * Metas do Score de Produtividade. São definidas pelo próprio usuário no dashboard
+ * (e redefinidas a cada troca de período), não valores fixos do sistema. `metaQualidade`
+ * é uma razão de aceitação de PRs (0–1); as demais são contagens/dias absolutos.
+ */
+export interface ProductivityGoals {
+  metaEntrega: number;
+  metaCycleTime: number;
+  metaQualidade: number;
+  metaReviews: number;
+  metaDiasAtivos: number;
+}
+
+/** Metas de referência mensais — usadas apenas como ponto de partida do formulário. */
+export const DEFAULT_GOALS: ProductivityGoals = {
+  metaEntrega: 50,
+  metaCycleTime: 3,
+  metaQualidade: 0.8,
+  metaReviews: 8,
+  metaDiasAtivos: 20,
+};
+
+function goalsQs(goals?: ProductivityGoals): Record<string, string> {
+  if (!goals) return {};
+  return {
+    metaEntrega: String(goals.metaEntrega),
+    metaCycleTime: String(goals.metaCycleTime),
+    metaQualidade: String(goals.metaQualidade),
+    metaReviews: String(goals.metaReviews),
+    metaDiasAtivos: String(goals.metaDiasAtivos),
+  };
+}
+
+export async function getProductivityScore(
+  authorLogin: string,
+  from: string,
+  to: string,
+  goals?: ProductivityGoals,
+): Promise<ProductivityScoreResponse> {
   const qs = new URLSearchParams({
     startDate: `${from}T00:00:00`,
     endDate: `${to}T23:59:59`,
+    ...goalsQs(goals),
   }).toString();
-  return apiFetch<ProductivityScoreResponse>(`/api/productivity-score/${encodeURIComponent(authorLogin)}?${qs}`);
+  return apiFetch<ProductivityScoreResponse>(
+    `/api/productivity-score/${encodeURIComponent(authorLogin)}?${qs}`,
+  );
 }
 
 export interface ScoreTrendPoint {
@@ -223,12 +317,16 @@ export async function getProductivityScoreTrend(
   authorLogin: string,
   from: string,
   to: string,
-  points = 12
+  goals?: ProductivityGoals,
+  points = 12,
 ): Promise<ScoreTrendPoint[]> {
   const qs = new URLSearchParams({
     startDate: `${from}T00:00:00`,
     endDate: `${to}T23:59:59`,
     points: String(points),
+    ...goalsQs(goals),
   }).toString();
-  return apiFetch<ScoreTrendPoint[]>(`/api/productivity-score/${encodeURIComponent(authorLogin)}/trend?${qs}`);
+  return apiFetch<ScoreTrendPoint[]>(
+    `/api/productivity-score/${encodeURIComponent(authorLogin)}/trend?${qs}`,
+  );
 }
